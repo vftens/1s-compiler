@@ -1,0 +1,1 @@
+1S ERP compiler transpiler and Visual UI Free Edition. We say 1S: to show that we are not affiliated with 1C.
