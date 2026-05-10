@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}1S: ERP Free Edition{% endblock %}</title>
+<style>
+:root {
+  --blue-dark:  #0d2137;
+  --blue-mid:   #1565C0;
+  --blue-light: #1976D2;
+  --accent:     #42A5F5;
+  --bg:         #f0f2f5;
+  --card-bg:    #ffffff;
+  --text:       #212121;
+  --text-muted: #757575;
+  --border:     #e0e0e0;
+  --sidebar-w:  220px;
+  --header-h:   56px;
+  --success:    #2e7d32;
+  --danger:     #c62828;
+  --warning:    #e65100;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;
+     background:var(--bg);color:var(--text);display:flex;flex-direction:column;
+     min-height:100vh}
+
+/* ── Header ── */
+header{position:fixed;top:0;left:0;right:0;height:var(--header-h);
+       background:var(--blue-dark);color:#fff;display:flex;align-items:center;
+       padding:0 16px;z-index:100;gap:12px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+header .logo{font-size:18px;font-weight:700;letter-spacing:.5px;color:#fff;
+             text-decoration:none;flex:1}
+header .logo span{color:var(--accent)}
+.header-user{display:flex;align-items:center;gap:10px;font-size:13px}
+.header-user .badge-role{background:var(--blue-mid);border-radius:4px;
+                          padding:2px 8px;font-size:11px;text-transform:uppercase}
+.header-user a{color:#cfd8dc;text-decoration:none}
+.header-user a:hover{color:#fff}
+
+/* ── Sidebar ── */
+nav.sidebar{position:fixed;top:var(--header-h);left:0;bottom:0;
+            width:var(--sidebar-w);background:var(--blue-dark);
+            overflow-y:auto;padding:8px 0;z-index:90}
+nav.sidebar .section-title{color:#78909C;font-size:11px;font-weight:600;
+                             letter-spacing:1px;padding:12px 16px 4px;
+                             text-transform:uppercase}
+nav.sidebar a{display:flex;align-items:center;gap:10px;padding:9px 16px;
+              color:#CFD8DC;text-decoration:none;font-size:13px;
+              border-left:3px solid transparent;transition:all .15s}
+nav.sidebar a:hover{background:rgba(255,255,255,.07);color:#fff}
+nav.sidebar a.active{background:rgba(66,165,245,.15);color:var(--accent);
+                     border-left-color:var(--accent)}
+nav.sidebar a .icon{font-size:16px;width:20px;text-align:center}
+
+/* ── Main ── */
+main{margin-top:var(--header-h);margin-left:var(--sidebar-w);
+     padding:24px;flex:1;min-height:calc(100vh - var(--header-h))}
+
+/* ── Alerts ── */
+.alerts{margin-bottom:16px}
+.alert{padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:8px}
+.alert-success{background:#e8f5e9;color:var(--success);border:1px solid #a5d6a7}
+.alert-danger {background:#ffebee;color:var(--danger);border:1px solid #ef9a9a}
+.alert-warning{background:#fff3e0;color:var(--warning);border:1px solid #ffcc80}
+
+/* ── Cards ── */
+.card{background:var(--card-bg);border-radius:8px;padding:20px;
+      box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.card h2{font-size:16px;font-weight:600;margin-bottom:12px;color:var(--blue-mid)}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;
+     border-radius:5px;font-size:13px;font-weight:500;cursor:pointer;
+     border:none;text-decoration:none;transition:opacity .15s}
+.btn:hover{opacity:.88}
+.btn-primary{background:var(--blue-mid);color:#fff}
+.btn-success{background:#2e7d32;color:#fff}
+.btn-danger {background:#c62828;color:#fff}
+.btn-ghost  {background:transparent;color:var(--blue-mid);border:1px solid var(--blue-mid)}
+.btn-sm{padding:4px 10px;font-size:12px}
+
+/* ── Form controls ── */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;font-weight:600;
+                   color:var(--text-muted);margin-bottom:4px;text-transform:uppercase}
+.form-control{width:100%;padding:8px 10px;border:1px solid var(--border);
+              border-radius:5px;font-size:13px;outline:none;background:#fff}
+.form-control:focus{border-color:var(--blue-mid);box-shadow:0 0 0 2px rgba(21,101,192,.2)}
+select.form-control{cursor:pointer}
+
+/* ── Table ── */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 12px;background:#f5f5f5;
+   color:var(--text-muted);font-weight:600;border-bottom:2px solid var(--border)}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+tr:hover td{background:#f9f9f9}
+
+/* ── Misc ── */
+.page-title{font-size:20px;font-weight:700;color:var(--blue-dark);margin-bottom:20px}
+hr{border:none;border-top:1px solid var(--border);margin:20px 0}
+</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<header>
+  <a href="{{ url_for('dashboard') }}" class="logo">1S: <span>ERP</span> Free Edition</a>
+  {% if session.user %}
+  <div class="header-user">
+    <span>{{ session.user.display }}</span>
+    <span class="badge-role">{{ session.user.role }}</span>
+    {% if session.user.role == 'admin' %}
+    <a href="{{ url_for('admin') }}">⚙ Панель</a>
+    {% endif %}
+    <a href="{{ url_for('logout') }}">Выход →</a>
+  </div>
+  {% endif %}
+</header>
+
+{% if session.user %}
+<nav class="sidebar">
+  <div class="section-title">Навигация</div>
+  <a href="{{ url_for('dashboard') }}"
+     class="{{ 'active' if request.endpoint == 'dashboard' and not request.args.get('module') }}">
+    <span class="icon">🏠</span> Все модули
+  </a>
+
+  <div class="section-title">Модули</div>
+  {% set modules_list = [
+    ('Прочее',      '💬'),
+    ('Бухгалтерия', '📒'),
+    ('Торговля',    '🛒'),
+    ('ЗУП',         '👥'),
+  ] %}
+  {% for mod, icon in modules_list %}
+  <a href="{{ url_for('dashboard', module=mod) }}"
+     class="{{ 'active' if request.args.get('module') == mod }}">
+    <span class="icon">{{ icon }}</span> {{ mod }}
+  </a>
+  {% endfor %}
+
+  {% if session.user.role == 'admin' %}
+  <div class="section-title">Администрирование</div>
+  <a href="{{ url_for('admin') }}"
+     class="{{ 'active' if request.endpoint == 'admin' }}">
+    <span class="icon">👤</span> Пользователи
+  </a>
+  {% endif %}
+</nav>
+{% endif %}
+
+<main>
+  <div class="alerts">
+    {% for cat, msgs in get_flashed_messages(with_categories=true) %}
+      {% for msg in msgs %}
+      <div class="alert alert-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+  {% block content %}{% endblock %}
+</main>
+
+</body>
+</html>

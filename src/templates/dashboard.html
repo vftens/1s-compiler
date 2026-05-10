@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Рабочий стол — 1S: ERP Free Edition{% endblock %}
+
+{% block extra_head %}
+<style>
+.module-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.filter-chip{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;
+             border:1px solid var(--border);background:#fff;color:var(--text-muted);
+             text-decoration:none;cursor:pointer;transition:all .15s}
+.filter-chip:hover{border-color:var(--blue-mid);color:var(--blue-mid)}
+.filter-chip.active{background:var(--blue-mid);color:#fff;border-color:var(--blue-mid)}
+
+.scripts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+
+.script-card{background:#fff;border-radius:8px;padding:20px;
+             box-shadow:0 1px 4px rgba(0,0,0,.1);
+             border-top:3px solid var(--blue-mid);
+             display:flex;flex-direction:column;gap:10px;
+             transition:box-shadow .15s,transform .15s}
+.script-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.15);transform:translateY(-2px)}
+
+.script-card-header{display:flex;align-items:flex-start;gap:10px}
+.script-icon{font-size:24px;line-height:1}
+.script-title{font-size:15px;font-weight:700;color:var(--blue-dark)}
+.script-module{font-size:11px;color:var(--text-muted);text-transform:uppercase;
+               font-weight:600;letter-spacing:.5px;margin-top:1px}
+.script-desc{font-size:13px;color:#546e7a;line-height:1.5;flex:1}
+.script-footer{display:flex;align-items:center;justify-content:space-between;
+               padding-top:8px;border-top:1px solid var(--border)}
+.script-name{font-size:11px;color:#90A4AE;font-family:monospace}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:14px}
+
+/* Change password modal */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
+                z-index:200;align-items:center;justify-content:center}
+.modal-backdrop.open{display:flex}
+.modal{background:#fff;border-radius:10px;padding:28px;width:360px;
+       box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:20px;color:var(--blue-dark)}
+.modal-close{float:right;background:none;border:none;font-size:18px;
+             cursor:pointer;color:#90A4AE;margin-top:-4px}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+  {% if active_module %}
+    {{ module_icons.get(active_module, '📁') }} {{ active_module }}
+  {% else %}
+    🏠 Рабочий стол
+  {% endif %}
+</div>
+
+<div class="module-filter">
+  <a href="{{ url_for('dashboard') }}"
+     class="filter-chip {{ 'active' if not active_module }}">Все</a>
+  {% for mod in modules %}
+  <a href="{{ url_for('dashboard', module=mod) }}"
+     class="filter-chip {{ 'active' if active_module == mod }}">
+    {{ module_icons.get(mod, '📁') }} {{ mod }}
+  </a>
+  {% endfor %}
+</div>
+
+{% if scripts %}
+<div class="scripts-grid">
+  {% for name, meta in scripts.items() %}
+  <div class="script-card">
+    <div class="script-card-header">
+      <div class="script-icon">{{ module_icons.get(meta.module, '📄') }}</div>
+      <div>
+        <div class="script-title">{{ meta.title }}</div>
+        <div class="script-module">{{ meta.module }}</div>
+      </div>
+    </div>
+    <div class="script-desc">{{ meta.desc }}</div>
+    <div class="script-footer">
+      <span class="script-name">{{ name }}.1s</span>
+      <a href="{{ url_for('run_script', name=name) }}" class="btn btn-primary btn-sm">
+        ▶ Запустить
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="icon">📭</div>
+  <p>В модуле «{{ active_module }}» нет доступных скриптов.</p>
+</div>
+{% endif %}
+
+<!-- Смена пароля (для текущего пользователя) -->
+<hr>
+<div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+  <span style="font-size:13px;color:var(--text-muted)">
+    Вы вошли как <strong>{{ user.display }}</strong> ({{ user.role }})
+  </span>
+  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('pwModal').classList.add('open')">
+    🔑 Сменить пароль
+  </button>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="pwModal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('pwModal').classList.remove('open')">✕</button>
+    <h3>🔑 Смена пароля</h3>
+    <form method="post" action="{{ url_for('profile_passwd') }}">
+      <div class="form-group">
+        <label>Текущий пароль</label>
+        <input type="password" name="old_password" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label>Новый пароль</label>
+        <input type="password" name="new_password" class="form-control" required minlength="4">
+      </div>
+      <div class="form-group">
+        <label>Подтверждение</label>
+        <input type="password" name="confirm" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%">Сохранить</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

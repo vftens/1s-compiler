@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.title }} — 1S: ERP{% endblock %}
+
+{% block extra_head %}
+<style>
+.run-header{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.run-header-info{flex:1}
+.run-header-info h1{font-size:20px;font-weight:700;color:var(--blue-dark)}
+.run-header-info .meta{font-size:13px;color:var(--text-muted);margin-top:3px}
+
+/* Tab strip */
+.tab-strip{display:flex;gap:0;border-bottom:2px solid #e0e6ef;margin-bottom:16px}
+.tab-btn{padding:8px 18px;font-size:13px;font-weight:600;color:var(--text-muted);
+         background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;
+         margin-bottom:-2px;transition:color .15s,border-color .15s}
+.tab-btn.active{color:var(--blue-mid);border-bottom-color:var(--blue-mid)}
+.tab-btn:hover{color:var(--blue-dark)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+
+.run-controls{display:flex;gap:10px;margin-bottom:16px;align-items:center}
+#status-badge{font-size:12px;padding:4px 10px;border-radius:12px;font-weight:600;
+              background:#e3f2fd;color:var(--blue-mid)}
+#status-badge.running{background:#fff3e0;color:#e65100}
+#status-badge.done   {background:#e8f5e9;color:#2e7d32}
+#status-badge.error  {background:#ffebee;color:#c62828}
+
+/* Terminal window */
+.terminal-wrap{background:#1e1e1e;border-radius:8px;overflow:hidden;
+               box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.terminal-bar{background:#2d2d2d;padding:10px 16px;display:flex;
+              align-items:center;gap:8px}
+.terminal-bar .dot{width:12px;height:12px;border-radius:50%}
+.dot-red   {background:#ff5f57}
+.dot-yellow{background:#ffbd2e}
+.dot-green {background:#28c840}
+.terminal-bar .title{flex:1;text-align:center;font-size:12px;
+                      color:#888;font-family:monospace}
+.terminal-bar .copy-btn{background:none;border:1px solid #555;color:#999;
+                         font-size:11px;padding:3px 8px;border-radius:4px;
+                         cursor:pointer;transition:all .15s}
+.terminal-bar .copy-btn:hover{border-color:#aaa;color:#ddd}
+
+#terminal{background:#1e1e1e;color:#d4d4d4;font-family:'Cascadia Code','Consolas',
+          'Courier New',monospace;font-size:13px;line-height:1.55;
+          padding:16px 20px;min-height:400px;max-height:70vh;
+          overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+
+/* Colour classes for output lines */
+.line-err  {color:#f48771}
+.line-sep  {color:#569cd6;font-weight:bold}
+.line-head {color:#4ec9b0;font-weight:bold}
+.line-num  {color:#b5cea8}
+.line-blank{color:#1e1e1e;user-select:none}
+
+/* Cython source viewer */
+.pyx-wrap{background:#1e1e1e;border-radius:8px;overflow:hidden;
+          box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.pyx-bar{background:#2d2d2d;padding:10px 16px;display:flex;align-items:center;gap:8px}
+.pyx-bar .title{flex:1;text-align:center;font-size:12px;color:#888;font-family:monospace}
+.pyx-bar .copy-btn{background:none;border:1px solid #555;color:#999;font-size:11px;
+                    padding:3px 8px;border-radius:4px;cursor:pointer;transition:all .15s}
+.pyx-bar .copy-btn:hover{border-color:#aaa;color:#ddd}
+#pyx-src{background:#1e1e1e;color:#d4d4d4;font-family:'Cascadia Code','Consolas',
+         'Courier New',monospace;font-size:12px;line-height:1.55;
+         padding:16px 20px;min-height:400px;max-height:70vh;
+         overflow-y:auto;white-space:pre;word-break:normal;
+         counter-reset:line}
+/* Keyword highlighting in .pyx */
+.kw-cdef   {color:#569cd6;font-weight:bold}
+.kw-cpdef  {color:#4ec9b0;font-weight:bold}
+.kw-cimport{color:#c586c0}
+.kw-directive{color:#608b4e}
+.kw-type   {color:#4fc1ff}
+
+/* Cython info box */
+.cython-info{background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;
+             padding:14px 18px;margin-bottom:16px;font-size:13px;color:#1b5e20}
+.cython-info code{background:#c8e6c9;padding:2px 6px;border-radius:4px;font-size:12px}
+.cython-info .cmd{background:#1e1e1e;color:#d4d4d4;padding:8px 12px;border-radius:6px;
+                   font-family:monospace;font-size:12px;margin-top:8px;display:block}
+
+/* Cursor blink when running */
+.cursor{display:inline-block;width:8px;height:14px;background:#d4d4d4;
+        vertical-align:middle;animation:blink 1s step-end infinite;margin-left:2px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+#btn-run{min-width:120px}
+#btn-clear{min-width:80px}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="run-header">
+  <div style="font-size:36px">{{ {'Прочее':'💬','Українська':'🇺🇦','Бухгалтерия':'📒','Торговля':'🛒','ЗУП':'👥'}.get(meta.module,'📄') }}</div>
+  <div class="run-header-info">
+    <h1>{{ meta.title }}</h1>
+    <div class="meta">{{ meta.module }} · <code style="font-size:12px">{{ name }}.1s</code> · {{ meta.desc }}</div>
+  </div>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-ghost btn-sm">← Назад</a>
+</div>
+
+<!-- Tab strip -->
+<div class="tab-strip">
+  <button class="tab-btn active" onclick="switchTab('run',this)">▶ Выполнение</button>
+  <button class="tab-btn"        onclick="switchTab('cython',this)">⚡ Cython .pyx</button>
+</div>
+
+<!-- ── Tab: Run ── -->
+<div id="tab-run" class="tab-pane active">
+  <div class="run-controls">
+    <button id="btn-run"   class="btn btn-primary" onclick="startRun()">▶ Запустить</button>
+    <button id="btn-clear" class="btn btn-ghost"   onclick="clearTerminal()">🗑 Очистить</button>
+    <span id="status-badge">ожидание</span>
+  </div>
+  <div class="terminal-wrap">
+    <div class="terminal-bar">
+      <span class="dot dot-red"></span>
+      <span class="dot dot-yellow"></span>
+      <span class="dot dot-green"></span>
+      <span class="title">{{ name }}.1s — вывод программы</span>
+      <button class="copy-btn" onclick="copyOutput()">⎘ Копировать</button>
+    </div>
+    <div id="terminal"><span style="color:#608b4e">// Нажмите «Запустить» для выполнения скрипта</span></div>
+  </div>
+</div>
+
+<!-- ── Tab: Cython ── -->
+<div id="tab-cython" class="tab-pane">
+  <div class="cython-info">
+    <strong>⚡ Cython — скомпилированный .pyx</strong><br>
+    Транспилятор 1S генерирует типизированный Cython-код с <code>cdef long</code> / <code>cdef double</code>
+    для числовых переменных и <code>cpdef</code> для функций — ускорение до 10–50× на числовых задачах.<br>
+    <span class="cmd">
+      # 1. Установить Cython:<br>
+      pip install cython<br><br>
+      # 2. Сгенерировать .pyx + setup_1s.py:<br>
+      python -m src.cli cython-gen examples/{{ name }}.1s<br><br>
+      # 3. Скомпилировать расширение (требует C-компилятора):<br>
+      python -m src.cli cython-build examples/{{ name }}.1s --run
+    </span>
+  </div>
+  <div id="pyx-loading" style="color:var(--text-muted);padding:20px 0">
+    Загрузка Cython-кода…
+  </div>
+  <div class="pyx-wrap" id="pyx-wrap" style="display:none">
+    <div class="pyx-bar">
+      <span class="dot dot-red"></span>
+      <span class="dot dot-yellow"></span>
+      <span class="dot dot-green"></span>
+      <span class="title">{{ name }}.pyx — Cython-аннотированный исходник</span>
+      <button class="copy-btn" onclick="copyPyx()">⎘ Копировать</button>
+    </div>
+    <div id="pyx-src"></div>
+  </div>
+</div>
+
+<script>
+const STREAM_URL  = "{{ url_for('stream', name=name) }}";
+const CYTHON_URL  = "{{ url_for('cython_source', name=name) }}";
+let es = null;
+let lineCount = 0;
+let pyxLoaded = false;
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'cython' && !pyxLoaded) loadPyx();
+}
+
+// ── Cython source loader ─────────────────────────────────────────────────────
+function loadPyx() {
+  fetch(CYTHON_URL)
+    .then(r => r.json())
+    .then(data => {
+      pyxLoaded = true;
+      document.getElementById('pyx-loading').style.display = 'none';
+      document.getElementById('pyx-wrap').style.display = 'block';
+      document.getElementById('pyx-src').innerHTML = highlightPyx(data.source);
+    })
+    .catch(() => {
+      document.getElementById('pyx-loading').textContent =
+        '⚠ Не удалось сгенерировать Cython-код. Проверьте консоль сервера.';
+    });
+}
+
+function highlightPyx(src) {
+  const lines = src.split('\n');
+  return lines.map((line, i) => {
+    let h = esc(line);
+    // Directives  # cython: ...
+    h = h.replace(/^(# cython:.*)$/, '<span class="kw-directive">$1</span>');
+    // Comments
+    h = h.replace(/^(#.*)$/, '<span style="color:#608b4e">$1</span>');
+    // cimport / from ... cimport
+    h = h.replace(/\bcimport\b/g, '<span class="kw-cimport">cimport</span>');
+    // cpdef / cdef / void
+    h = h.replace(/\bcpdef\b/g, '<span class="kw-cpdef">cpdef</span>');
+    h = h.replace(/\bcdef\b/g,  '<span class="kw-cdef">cdef</span>');
+    // C types
+    h = h.replace(/\b(long|double|bint|void|int|float)\b/g,
+                  '<span class="kw-type">$1</span>');
+    // Python keywords
+    h = h.replace(/\b(def|return|if|elif|else|for|in|while|try|except|raise|import|from|class|pass|not|and|or|True|False|None)\b/g,
+                  '<span style="color:#569cd6">$1</span>');
+    const num = String(i + 1).padStart(4, ' ');
+    return `<span style="color:#555;user-select:none">${num} │ </span>${h}`;
+  }).join('\n');
+}
+
+function copyPyx() {
+  fetch(CYTHON_URL).then(r => r.json()).then(data => {
+    navigator.clipboard.writeText(data.source).then(() => {
+      const btns = document.querySelectorAll('.pyx-bar .copy-btn');
+      btns.forEach(b => { b.textContent = '✓ Скопировано'; });
+      setTimeout(() => btns.forEach(b => { b.textContent = '⎘ Копировать'; }), 2000);
+    });
+  });
+}
+
+// ── Terminal / run ───────────────────────────────────────────────────────────
+function colorLine(text) {
+  const t = text.trim();
+  if (!t) return '<span class="line-blank"> </span>';
+  if (t.startsWith('//') || t.startsWith('#'))          return `<span class="line-err">${esc(text)}</span>`;
+  if (/^[═─]{4,}/.test(t) || /^══/.test(t))            return `<span class="line-sep">${esc(text)}</span>`;
+  if (/ИТОГО|ВСЕГО|TOTAL|РАЗОМ/.test(t))                return `<span class="line-head">${esc(text)}</span>`;
+  if (/^\s+[\d\s,.]+$/.test(t))                         return `<span class="line-num">${esc(text)}</span>`;
+  return esc(text);
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function startRun() {
+  if (es) { es.close(); es = null; }
+  const term   = document.getElementById('terminal');
+  const badge  = document.getElementById('status-badge');
+  const btnRun = document.getElementById('btn-run');
+
+  term.innerHTML = '';
+  lineCount = 0;
+  badge.className = 'running';
+  badge.textContent = '⏳ выполняется…';
+  btnRun.disabled = true;
+
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+  cursor.id = 'cursor';
+  term.appendChild(cursor);
+
+  es = new EventSource(STREAM_URL);
+
+  es.onmessage = function(e) {
+    const data = e.data;
+    if (data === '__DONE__') {
+      es.close(); es = null;
+      const cur = document.getElementById('cursor');
+      if (cur) cur.remove();
+      badge.className = 'done';
+      badge.textContent = `✓ завершено (${lineCount} строк)`;
+      btnRun.disabled = false;
+      return;
+    }
+    lineCount++;
+    const cur = document.getElementById('cursor');
+    const div = document.createElement('div');
+    div.innerHTML = colorLine(data);
+    if (cur) term.insertBefore(div, cur);
+    else term.appendChild(div);
+    term.scrollTop = term.scrollHeight;
+  };
+
+  es.onerror = function() {
+    if (es) { es.close(); es = null; }
+    const cur = document.getElementById('cursor');
+    if (cur) cur.remove();
+    badge.className = 'error';
+    badge.textContent = '✗ ошибка соединения';
+    btnRun.disabled = false;
+  };
+}
+
+function clearTerminal() {
+  if (es) { es.close(); es = null; }
+  document.getElementById('terminal').innerHTML =
+    '<span style="color:#608b4e">// Очищено. Нажмите «Запустить» для повторного запуска.</span>';
+  const badge = document.getElementById('status-badge');
+  badge.className = '';
+  badge.textContent = 'ожидание';
+  document.getElementById('btn-run').disabled = false;
+}
+
+function copyOutput() {
+  const text = document.getElementById('terminal').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('#tab-run .copy-btn');
+    btn.textContent = '✓ Скопировано';
+    setTimeout(() => btn.textContent = '⎘ Копировать', 2000);
+  });
+}
+</script>
+{% endblock %}

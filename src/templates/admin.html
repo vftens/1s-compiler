@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Администрирование — 1S: ERP{% endblock %}
+
+{% block extra_head %}
+<style>
+.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:0}
+@media(max-width:900px){.admin-grid{grid-template-columns:1fr}}
+
+.role-badge{display:inline-block;padding:2px 8px;border-radius:4px;
+            font-size:11px;font-weight:700;text-transform:uppercase}
+.role-admin{background:#e3f2fd;color:#1565C0}
+.role-user {background:#f3e5f5;color:#6a1b9a}
+
+.user-actions{display:flex;gap:6px}
+
+/* inline form for passwd change per row */
+.passwd-form{display:none;margin-top:6px;display:flex;gap:6px;align-items:center}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">⚙ Управление пользователями</div>
+
+<div class="card" style="margin-bottom:20px">
+  <table>
+    <thead>
+      <tr>
+        <th>Логин</th>
+        <th>Отображаемое имя</th>
+        <th>Роль</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td><strong>{{ u.username }}</strong></td>
+        <td>{{ u.display }}</td>
+        <td><span class="role-badge role-{{ u.role }}">{{ u.role }}</span></td>
+        <td>
+          <div class="user-actions">
+            <!-- Change password inline -->
+            <button class="btn btn-ghost btn-sm"
+                    onclick="togglePasswd('{{ u.username }}')">🔑 Пароль</button>
+            {% if u.username != user.username %}
+            <form method="post" action="{{ url_for('admin_delete') }}"
+                  onsubmit="return confirm('Удалить пользователя «{{ u.username }}»?')">
+              <input type="hidden" name="username" value="{{ u.username }}">
+              <button type="submit" class="btn btn-danger btn-sm">✕</button>
+            </form>
+            {% else %}
+            <span style="font-size:11px;color:#90A4AE">(текущий)</span>
+            {% endif %}
+          </div>
+          <!-- Inline password change form -->
+          <div id="passwd-{{ u.username }}" style="display:none;margin-top:8px">
+            <form method="post" action="{{ url_for('admin_passwd') }}"
+                  style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <input type="hidden" name="username" value="{{ u.username }}">
+              <input type="password" name="new_password" class="form-control"
+                     placeholder="Новый пароль" style="width:160px" required minlength="4">
+              <button type="submit" class="btn btn-success btn-sm">Сохранить</button>
+              <button type="button" class="btn btn-ghost btn-sm"
+                      onclick="togglePasswd('{{ u.username }}')">Отмена</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="admin-grid">
+  <!-- Add user -->
+  <div class="card">
+    <h2>➕ Добавить пользователя</h2>
+    <form method="post" action="{{ url_for('admin_add') }}">
+      <div class="form-group">
+        <label>Логин</label>
+        <input type="text" name="username" class="form-control"
+               placeholder="ivan.petrov" required pattern="[\w\-]{3,32}">
+      </div>
+      <div class="form-group">
+        <label>Отображаемое имя</label>
+        <input type="text" name="display" class="form-control"
+               placeholder="Иван Петров">
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" name="password" class="form-control"
+               placeholder="Минимум 4 символа" required minlength="4">
+      </div>
+      <div class="form-group">
+        <label>Роль</label>
+        <select name="role" class="form-control">
+          <option value="user">Пользователь</option>
+          <option value="admin">Администратор</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Создать</button>
+    </form>
+  </div>
+
+  <!-- Info -->
+  <div class="card">
+    <h2>ℹ Информация</h2>
+    <p style="font-size:13px;color:#546e7a;line-height:1.7">
+      Пароли хранятся в виде <strong>SHA-256</strong> хешей в файле
+      <code style="font-size:12px">config/users.json</code>.<br><br>
+      <strong>Роли:</strong><br>
+      &nbsp;• <span class="role-badge role-admin">admin</span> — полный доступ, управление пользователями<br>
+      &nbsp;• <span class="role-badge role-user">user</span> — запуск скриптов, просмотр результатов<br><br>
+      <strong>Аккаунты по умолчанию:</strong><br>
+      &nbsp;• <code>admin / admin</code><br>
+      &nbsp;• <code>user / user</code><br><br>
+      <span style="color:#c62828">⚠ Смените пароли по умолчанию в рабочей среде!</span>
+    </p>
+    <hr>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost btn-sm">← На рабочий стол</a>
+  </div>
+</div>
+
+<script>
+function togglePasswd(username) {
+  const el = document.getElementById('passwd-' + username);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

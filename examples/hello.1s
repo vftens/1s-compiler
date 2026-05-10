@@ -1,0 +1,61 @@
+// 1S: ERP Free Edition — Hello World (bilingual demo)
+// Both Russian and English keywords work interchangeably.
+
+// ── Variables ──────────────────────────────────────────────────────────────
+Перем Приветствие;
+Приветствие = "Привет, мир!";
+
+Var Greeting;
+Greeting = "Hello, World!";
+
+// ── Procedure (Russian keywords) ──────────────────────────────────────────
+Процедура ПоказатьПриветствие(Знач Текст)
+    Сообщить(Текст);
+КонецПроцедуры
+
+// ── Function (English keywords) ──────────────────────────────────────────
+Function Square(Val N)
+    Return N * N;
+EndFunction
+
+// ── If / ElseIf / Else (Russian) ─────────────────────────────────────────
+Для А = 1 По 5 Цикл
+    Если А = 1 Тогда
+        Сообщить("Один");
+    ИначеЕсли А = 2 Тогда
+        Сообщить("Два");
+    Иначе
+        Сообщить("Больше двух: " + Строка(А));
+    КонецЕсли;
+КонецЦикла;
+
+// ── ForEach (English) ─────────────────────────────────────────────────────
+Var Fruits;
+Fruits = New Array();
+Fruits.Add("Apple");
+Fruits.Add("Banana");
+Fruits.Add("Cherry");
+
+For Each Fruit In Fruits Do
+    Message(Fruit);
+EndDo;
+
+// ── Try / Except ──────────────────────────────────────────────────────────
+Try
+    Var X;
+    X = 1 / 0;
+Except
+    Message("Division error caught: " + ErrorDescription());
+EndTry;
+
+// ── Ternary (1S extension) ────────────────────────────────────────────────
+Var IsAdult;
+Var Age;
+Age = 20;
+IsAdult = Age >= 18 ? "Adult" : "Minor";
+Message(IsAdult);
+
+// ── Main calls ────────────────────────────────────────────────────────────
+ПоказатьПриветствие(Приветствие);
+Message(Greeting);
+Message("5² = " + String(Square(5)));

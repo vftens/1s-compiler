@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Вход — 1S: ERP Free Edition</title>
+<style>
+:root{--blue-dark:#0d2137;--blue-mid:#1565C0;--accent:#42A5F5;
+      --danger:#c62828;--border:#e0e0e0}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;
+     background:linear-gradient(135deg,#0d2137 0%,#1565C0 100%);
+     min-height:100vh;display:flex;align-items:center;justify-content:center}
+
+.login-wrap{width:380px}
+
+.login-logo{text-align:center;margin-bottom:28px;color:#fff}
+.login-logo .app-name{font-size:28px;font-weight:700;letter-spacing:.5px}
+.login-logo .app-name span{color:var(--accent)}
+.login-logo .app-sub{font-size:13px;color:#90CAF9;margin-top:4px}
+
+.login-card{background:#fff;border-radius:10px;padding:32px;
+            box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.login-card h1{font-size:18px;font-weight:600;color:var(--blue-dark);
+               margin-bottom:24px;text-align:center}
+
+.form-group{margin-bottom:18px}
+.form-group label{display:block;font-size:12px;font-weight:600;
+                   color:#757575;margin-bottom:5px;text-transform:uppercase;
+                   letter-spacing:.5px}
+.form-control{width:100%;padding:10px 12px;border:1px solid var(--border);
+              border-radius:6px;font-size:14px;outline:none;background:#fafafa;
+              transition:border-color .15s,box-shadow .15s}
+.form-control:focus{border-color:var(--blue-mid);background:#fff;
+                    box-shadow:0 0 0 3px rgba(21,101,192,.15)}
+
+.btn-login{width:100%;padding:11px;background:var(--blue-mid);color:#fff;
+           border:none;border-radius:6px;font-size:15px;font-weight:600;
+           cursor:pointer;transition:background .15s;margin-top:8px}
+.btn-login:hover{background:#1976D2}
+.btn-login:active{background:#0d47a1}
+
+.error-msg{background:#ffebee;color:var(--danger);border:1px solid #ef9a9a;
+           border-radius:6px;padding:10px 12px;font-size:13px;margin-bottom:16px}
+
+.hint{margin-top:20px;text-align:center;color:#90A4AE;font-size:12px}
+.hint code{background:#f5f5f5;padding:1px 5px;border-radius:3px;
+           color:#455A64;font-size:11px}
+
+.footer-note{text-align:center;color:#78909C;font-size:11px;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-logo">
+    <div class="app-name">1S: <span>ERP</span> Free Edition</div>
+    <div class="app-sub">Система управления предприятием</div>
+  </div>
+
+  <div class="login-card">
+    <h1>Вход в систему</h1>
+
+    {% if error %}
+    <div class="error-msg">⚠ {{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+      <div class="form-group">
+        <label for="username">Логин</label>
+        <input id="username" name="username" type="text" class="form-control"
+               placeholder="Введите логин" autofocus autocomplete="username"
+               value="{{ request.form.get('username', '') }}">
+      </div>
+      <div class="form-group">
+        <label for="password">Пароль</label>
+        <input id="password" name="password" type="password" class="form-control"
+               placeholder="Введите пароль" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-login">Войти →</button>
+    </form>
+
+    <div class="hint">
+      По умолчанию: <code>admin / admin</code> &nbsp;или&nbsp; <code>user / user</code>
+    </div>
+  </div>
+
+  <div class="footer-note">1S: ERP Free Edition · Демонстрационный стенд</div>
+</div>
+</body>
+</html>
