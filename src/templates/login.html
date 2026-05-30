@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ lang }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Вход — 1S: ERP Free Edition</title>
+<title>{{ t.login_title }} — 1S: ERP Free Edition</title>
 <style>
 :root{--blue-dark:#0d2137;--blue-mid:#1565C0;--accent:#42A5F5;
       --danger:#c62828;--border:#e0e0e0}
@@ -48,17 +48,36 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;
            color:#455A64;font-size:11px}
 
 .footer-note{text-align:center;color:#78909C;font-size:11px;margin-top:20px}
+
+/* Language switcher on login page */
+.lang-bar{display:flex;justify-content:center;gap:6px;margin-bottom:20px}
+.lang-bar a{color:#90CAF9;font-size:12px;text-decoration:none;
+            padding:3px 8px;border-radius:4px;border:1px solid transparent;
+            transition:all .15s}
+.lang-bar a:hover{color:#fff;border-color:rgba(255,255,255,.3)}
+.lang-bar a.active{color:#fff;border-color:rgba(255,255,255,.4);
+                   background:rgba(255,255,255,.1)}
 </style>
 </head>
 <body>
 <div class="login-wrap">
+
+  <div class="lang-bar">
+    <a href="{{ url_for('set_lang', code='ru') }}"
+       class="{{ 'active' if lang == 'ru' }}">🇷🇺 RU</a>
+    <a href="{{ url_for('set_lang', code='uk') }}"
+       class="{{ 'active' if lang == 'uk' }}">🇺🇦 UA</a>
+    <a href="{{ url_for('set_lang', code='en') }}"
+       class="{{ 'active' if lang == 'en' }}">🇬🇧 EN</a>
+  </div>
+
   <div class="login-logo">
     <div class="app-name">1S: <span>ERP</span> Free Edition</div>
-    <div class="app-sub">Система управления предприятием</div>
+    <div class="app-sub">{{ t.login_subtitle }}</div>
   </div>
 
   <div class="login-card">
-    <h1>Вход в систему</h1>
+    <h1>{{ t.login_title }}</h1>
 
     {% if error %}
     <div class="error-msg">⚠ {{ error }}</div>
@@ -66,25 +85,27 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;
 
     <form method="post">
       <div class="form-group">
-        <label for="username">Логин</label>
+        <label for="username">{{ t.login_username_label }}</label>
         <input id="username" name="username" type="text" class="form-control"
-               placeholder="Введите логин" autofocus autocomplete="username"
+               placeholder="{{ t.login_username_placeholder }}"
+               autofocus autocomplete="username"
                value="{{ request.form.get('username', '') }}">
       </div>
       <div class="form-group">
-        <label for="password">Пароль</label>
+        <label for="password">{{ t.login_password_label }}</label>
         <input id="password" name="password" type="password" class="form-control"
-               placeholder="Введите пароль" autocomplete="current-password">
+               placeholder="{{ t.login_password_placeholder }}"
+               autocomplete="current-password">
       </div>
-      <button type="submit" class="btn-login">Войти →</button>
+      <button type="submit" class="btn-login">{{ t.login_button }}</button>
     </form>
 
     <div class="hint">
-      По умолчанию: <code>admin / admin</code> &nbsp;или&nbsp; <code>user / user</code>
+      {{ t.login_default_hint }}: <code>admin / admin</code> &nbsp;/&nbsp; <code>user / user</code>
     </div>
   </div>
 
-  <div class="footer-note">1S: ERP Free Edition · Демонстрационный стенд</div>
+  <div class="footer-note">{{ t.login_footer }}</div>
 </div>
 </body>
 </html>

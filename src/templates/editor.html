@@ -51,7 +51,7 @@
 
 {% block content %}
 <div class="editor-toolbar">
-  <strong style="font-size:15px;color:var(--blue-dark)">✏️ Редактор 1S</strong>
+  <strong style="font-size:15px;color:var(--blue-dark)">{{ t.editor_title }}</strong>
 
   <!-- Quick-load existing scripts -->
   <div class="file-chips" id="file-chips">
@@ -67,31 +67,31 @@
   <button class="btn btn-primary" id="btn-run" onclick="runCode()">▶ Запустить</button>
   <button class="btn btn-ghost"   onclick="clearOutput()">🗑</button>
   <button class="btn btn-ghost"   onclick="copyOutput()">⎘</button>
-  <span id="status-badge">ожидание</span>
+  <span id="status-badge">{{ t.run_status_idle }}</span>
 </div>
 
 <div class="editor-layout">
   <!-- Monaco editor -->
   <div class="editor-pane">
-    <div class="pane-label">Исходный код .1s</div>
+    <div class="pane-label">{{ t.editor_source_label }}</div>
     <div class="monaco-host" id="monaco-host"></div>
   </div>
 
   <!-- Output terminal -->
   <div class="output-pane">
-    <div class="pane-label">Вывод программы</div>
+    <div class="pane-label">{{ t.editor_output_label }}</div>
     <div class="terminal-wrap">
       <div class="terminal-bar">
         <span class="dot dot-red"></span>
         <span class="dot dot-yellow"></span>
         <span class="dot dot-green"></span>
-        <span class="t-title" id="run-title">— готов —</span>
+        <span class="t-title" id="run-title">{{ t.editor_ready }}</span>
         <button class="copy-btn" style="background:none;border:1px solid #555;color:#999;
                 font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer"
                 onclick="copyOutput()">⎘ Копировать</button>
       </div>
       <div id="terminal-out">
-        <span style="color:#608b4e">// Напишите код слева и нажмите ▶ Запустить</span>
+        <span style="color:#608b4e">{{ t.editor_hint }}</span>
       </div>
     </div>
   </div>

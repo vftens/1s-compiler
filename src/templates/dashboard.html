@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Рабочий стол — 1S: ERP Free Edition{% endblock %}
+{% block title %}{{ t.dash_title }} — 1S: ERP Free Edition{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -33,7 +33,6 @@
 .empty-state .icon{font-size:48px;margin-bottom:12px}
 .empty-state p{font-size:14px}
 
-/* Change password modal */
 .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
                 z-index:200;align-items:center;justify-content:center}
 .modal-backdrop.open{display:flex}
@@ -50,13 +49,13 @@
   {% if active_module %}
     {{ module_icons.get(active_module, '📁') }} {{ active_module }}
   {% else %}
-    🏠 Рабочий стол
+    {{ t.dash_title }}
   {% endif %}
 </div>
 
 <div class="module-filter">
   <a href="{{ url_for('dashboard') }}"
-     class="filter-chip {{ 'active' if not active_module }}">Все</a>
+     class="filter-chip {{ 'active' if not active_module }}">{{ t.dash_filter_all }}</a>
   {% for mod in modules %}
   <a href="{{ url_for('dashboard', module=mod) }}"
      class="filter-chip {{ 'active' if active_module == mod }}">
@@ -80,7 +79,7 @@
     <div class="script-footer">
       <span class="script-name">{{ name }}.1s</span>
       <a href="{{ url_for('run_script', name=name) }}" class="btn btn-primary btn-sm">
-        ▶ Запустить
+        {{ t.dash_run_btn }}
       </a>
     </div>
   </div>
@@ -89,40 +88,42 @@
 {% else %}
 <div class="empty-state">
   <div class="icon">📭</div>
-  <p>В модуле «{{ active_module }}» нет доступных скриптов.</p>
+  <p>{{ t.dash_empty }}</p>
 </div>
 {% endif %}
 
-<!-- Смена пароля (для текущего пользователя) -->
 <hr>
 <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
   <span style="font-size:13px;color:var(--text-muted)">
-    Вы вошли как <strong>{{ user.display }}</strong> ({{ user.role }})
+    {{ t.dash_logged_as }} <strong>{{ user.display }}</strong> ({{ user.role }})
   </span>
-  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('pwModal').classList.add('open')">
-    🔑 Сменить пароль
+  <button class="btn btn-ghost btn-sm"
+          onclick="document.getElementById('pwModal').classList.add('open')">
+    {{ t.dash_change_password }}
   </button>
 </div>
 
-<!-- Modal -->
 <div class="modal-backdrop" id="pwModal">
   <div class="modal">
-    <button class="modal-close" onclick="document.getElementById('pwModal').classList.remove('open')">✕</button>
-    <h3>🔑 Смена пароля</h3>
+    <button class="modal-close"
+            onclick="document.getElementById('pwModal').classList.remove('open')">✕</button>
+    <h3>{{ t.dash_pw_modal_title }}</h3>
     <form method="post" action="{{ url_for('profile_passwd') }}">
       <div class="form-group">
-        <label>Текущий пароль</label>
+        <label>{{ t.dash_pw_current }}</label>
         <input type="password" name="old_password" class="form-control" required>
       </div>
       <div class="form-group">
-        <label>Новый пароль</label>
+        <label>{{ t.dash_pw_new }}</label>
         <input type="password" name="new_password" class="form-control" required minlength="4">
       </div>
       <div class="form-group">
-        <label>Подтверждение</label>
+        <label>{{ t.dash_pw_confirm }}</label>
         <input type="password" name="confirm" class="form-control" required>
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%">Сохранить</button>
+      <button type="submit" class="btn btn-primary" style="width:100%">
+        {{ t.dash_pw_save }}
+      </button>
     </form>
   </div>
 </div>

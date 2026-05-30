@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ lang }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -38,6 +38,16 @@ header .logo span{color:var(--accent)}
                           padding:2px 8px;font-size:11px;text-transform:uppercase}
 .header-user a{color:#cfd8dc;text-decoration:none}
 .header-user a:hover{color:#fff}
+
+/* ── Language switcher ── */
+.lang-switcher{display:flex;align-items:center;gap:2px;margin-right:4px}
+.lang-btn{display:inline-flex;align-items:center;gap:3px;
+          padding:3px 7px;border-radius:4px;font-size:11px;font-weight:600;
+          color:#90a4ae;text-decoration:none;transition:all .15s;
+          border:1px solid transparent}
+.lang-btn:hover{color:#fff;background:rgba(255,255,255,.1)}
+.lang-btn.active{color:#fff;border-color:rgba(255,255,255,.35);
+                 background:rgba(255,255,255,.12)}
 
 /* ── Sidebar ── */
 nav.sidebar{position:fixed;top:var(--header-h);left:0;bottom:0;
@@ -109,47 +119,57 @@ hr{border:none;border-top:1px solid var(--border);margin:20px 0}
   <a href="{{ url_for('dashboard') }}" class="logo">1S: <span>ERP</span> Free Edition</a>
   {% if session.user %}
   <div class="header-user">
+    <!-- Language switcher -->
+    <div class="lang-switcher">
+      <a href="{{ url_for('set_lang', code='ru') }}"
+         class="lang-btn {{ 'active' if lang == 'ru' }}">🇷🇺 RU</a>
+      <a href="{{ url_for('set_lang', code='uk') }}"
+         class="lang-btn {{ 'active' if lang == 'uk' }}">🇺🇦 UA</a>
+      <a href="{{ url_for('set_lang', code='en') }}"
+         class="lang-btn {{ 'active' if lang == 'en' }}">🇬🇧 EN</a>
+    </div>
+
     <span>{{ session.user.display }}</span>
     <span class="badge-role">{{ session.user.role }}</span>
     {% if session.user.role == 'admin' %}
-    <a href="{{ url_for('admin') }}">⚙ Панель</a>
+    <a href="{{ url_for('admin') }}">{{ t.header_panel }}</a>
     {% endif %}
-    <a href="{{ url_for('logout') }}">Выход →</a>
+    <a href="{{ url_for('logout') }}">{{ t.header_logout }}</a>
   </div>
   {% endif %}
 </header>
 
 {% if session.user %}
 <nav class="sidebar">
-  <div class="section-title">Навигация</div>
+  <div class="section-title">{{ t.nav_navigation }}</div>
   <a href="{{ url_for('dashboard') }}"
      class="{{ 'active' if request.endpoint == 'dashboard' and not request.args.get('module') }}">
-    <span class="icon">🏠</span> Все модули
+    <span class="icon">🏠</span> {{ t.nav_all_modules }}
   </a>
   <a href="{{ url_for('editor') }}"
      class="{{ 'active' if request.endpoint == 'editor' }}">
-    <span class="icon">✏️</span> Редактор
+    <span class="icon">✏️</span> {{ t.nav_editor }}
   </a>
 
-  <div class="section-title">Модули</div>
+  <div class="section-title">{{ t.nav_modules }}</div>
   {% set modules_list = [
-    ('Прочее',      '💬'),
-    ('Бухгалтерия', '📒'),
-    ('Торговля',    '🛒'),
-    ('ЗУП',         '👥'),
+    ('Прочее',      '💬', t.mod_other),
+    ('Бухгалтерия', '📒', t.mod_accounting),
+    ('Торговля',    '🛒', t.mod_trade),
+    ('ЗУП',         '👥', t.mod_payroll),
   ] %}
-  {% for mod, icon in modules_list %}
-  <a href="{{ url_for('dashboard', module=mod) }}"
-     class="{{ 'active' if request.args.get('module') == mod }}">
-    <span class="icon">{{ icon }}</span> {{ mod }}
+  {% for mod_key, icon, mod_label in modules_list %}
+  <a href="{{ url_for('dashboard', module=mod_key) }}"
+     class="{{ 'active' if request.args.get('module') == mod_key }}">
+    <span class="icon">{{ icon }}</span> {{ mod_label }}
   </a>
   {% endfor %}
 
   {% if session.user.role == 'admin' %}
-  <div class="section-title">Администрирование</div>
+  <div class="section-title">{{ t.nav_admin }}</div>
   <a href="{{ url_for('admin') }}"
      class="{{ 'active' if request.endpoint == 'admin' }}">
-    <span class="icon">👤</span> Пользователи
+    <span class="icon">👤</span> {{ t.nav_users }}
   </a>
   {% endif %}
 </nav>

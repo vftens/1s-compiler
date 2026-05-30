@@ -19,6 +19,9 @@ _EDITOR_RUNS: dict[str, Path] = {}
 ROOT     = Path(__file__).parent.parent
 EXAMPLES = ROOT / "examples"
 
+SUPPORTED_LANGS = {"ru", "uk", "en"}
+DEFAULT_LANG     = "ru"
+
 # ── Secret key ───────────────────────────────────────────────────────────────
 
 def _secret_key() -> bytes:
@@ -64,6 +67,15 @@ MODULE_ICONS = {
     "ЗУП":         "👥",
 }
 
+# ── i18n context processor ───────────────────────────────────────────────────
+
+@app.context_processor
+def inject_i18n():
+    from .i18n import t as build_t
+    lang = session.get("lang", DEFAULT_LANG)
+    return {"t": build_t(lang), "lang": lang}
+
+
 # ── Auth decorators ───────────────────────────────────────────────────────────
 
 def login_required(f):
@@ -86,6 +98,14 @@ def admin_required(f):
     return wrapped
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
+@app.route("/lang/<code>")
+def set_lang(code: str):
+    """Switch UI language and redirect back."""
+    if code in SUPPORTED_LANGS:
+        session["lang"] = code
+    return redirect(request.referrer or url_for("dashboard"))
+
 
 @app.route("/")
 def index():
