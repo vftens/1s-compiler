@@ -82,6 +82,12 @@ SCRIPTS: dict[str, dict] = {
                         "desc": "Начисление ЗП, НДФЛ, страховые взносы, отпуска"},
     "hrm_zup":         {"title": "ЗУП: Классификаторы",        "module": "ЗУП",
                         "desc": "Инфобаза ЗУП, графики работы, штатное расписание"},
+    "erp_full_uk":     {"title": "ERP: Повний цикл (UA)",        "module": "Торговля",
+                        "desc": "Довідники + Документи + Облік + P&L — повний ERP-цикл"},
+    "erp_full_ru":     {"title": "ERP: Полный цикл (RU)",         "module": "Торговля",
+                        "desc": "Справочники + Документы + Учёт + П&У — полный ERP-цикл"},
+    "erp_full_en":     {"title": "ERP: Full cycle (EN)",           "module": "Торговля",
+                        "desc": "Catalogs + Documents + Accounting + P&L — complete ERP cycle"},
     "reports_uk":      {"title": "ОСВ + P&L (UA)",               "module": "Бухгалтерия",
                         "desc": "Оборотно-сальдова відомість + Звіт про фінансові результати"},
     "reports_ru":      {"title": "ОСВ + ОФР (RU)",              "module": "Бухгалтерия",
@@ -260,6 +266,123 @@ def cython_source(name: str):
         ast    = Parser(tokens).parse()
         pyx    = CythonTranspiler().transpile(ast)
         return jsonify({"source": pyx, "name": name})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+# ── REST API v1 ───────────────────────────────────────────────────────────────
+
+@app.route("/api/v1/ping")
+def api_ping():
+    """Health-check — no auth required."""
+    return jsonify({
+        "status":  "ok",
+        "product": "1S: ERP Free Edition",
+        "version": "0.3.0",
+        "lang":    session.get("lang", DEFAULT_LANG),
+    })
+
+
+@app.route("/api/v1/scripts")
+@login_required
+def api_scripts():
+    """List all registered scripts."""
+    return jsonify({"scripts": SCRIPTS})
+
+
+@app.route("/api/v1/run/<name>", methods=["POST", "GET"])
+@login_required
+def api_run_script(name: str):
+    """
+    Run a named example script and return full output as JSON.
+    POST /api/v1/run/hello_uk
+    → {"name": "hello_uk", "output": ["line1", "line2", ...], "exit_code": 0}
+    """
+    script_path = EXAMPLES / f"{name}.1s"
+    if not script_path.exists() or name not in SCRIPTS:
+        return jsonify({"error": f"script '{name}' not found"}), 404
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT)
+    env["PYTHONUTF8"] = "1"
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "src.cli", "run", str(script_path)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            env=env, cwd=str(ROOT), timeout=30,
+        )
+        lines = proc.stdout.splitlines()
+        return jsonify({
+            "name":      name,
+            "title":     SCRIPTS[name]["title"],
+            "output":    lines,
+            "exit_code": proc.returncode,
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "script timeout (30s)"}), 504
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/v1/eval", methods=["POST"])
+@login_required
+def api_eval():
+    """
+    Run arbitrary 1S code and return output.
+    POST /api/v1/eval
+    Body: {"code": "Повідомити(42);", "filename": "test.1s"}
+    → {"output": ["42"], "exit_code": 0}
+    """
+    data = request.get_json(silent=True) or {}
+    code = data.get("code", "")
+    filename = data.get("filename", "api_eval.1s")
+
+    import tempfile
+    tmp = None
+    try:
+        tmp = os.path.join(tempfile.gettempdir(), filename)
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(code)
+
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(ROOT)
+        env["PYTHONUTF8"] = "1"
+        proc = subprocess.run(
+            [sys.executable, "-m", "src.cli", "run", tmp],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            env=env, cwd=str(ROOT), timeout=15,
+        )
+        return jsonify({
+            "output":    proc.stdout.splitlines(),
+            "stderr":    proc.stderr.splitlines()[-5:] if proc.stderr else [],
+            "exit_code": proc.returncode,
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "timeout (15s)"}), 504
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    finally:
+        if tmp:
+            try: os.unlink(tmp)
+            except Exception: pass
+
+
+@app.route("/api/v1/cython/<name>")
+@login_required
+def api_cython(name: str):
+    """Generate Cython .pyx for a named script."""
+    from .lexer import Lexer
+    from .parser import Parser
+    from .transpiler import CythonTranspiler
+    script_path = EXAMPLES / f"{name}.1s"
+    if not script_path.exists() or name not in SCRIPTS:
+        return jsonify({"error": "not found"}), 404
+    try:
+        source = script_path.read_text(encoding="utf-8")
+        tokens = Lexer(source, script_path.name).tokenize()
+        ast    = Parser(tokens).parse()
+        pyx    = CythonTranspiler().transpile(ast)
+        return jsonify({"name": name, "pyx": pyx})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

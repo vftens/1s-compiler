@@ -1,0 +1,125 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP — Full ERP cycle in English
+//   Catalogs → Documents → Accounting → Financial Report
+// ══════════════════════════════════════════════════════════════════════
+
+// ── 1. CATALOGS ──────────────────────────────────────────────────────
+Counterparties = Catalog("Counterparties");
+Alpha_LLC  = Counterparties.Create("0001", "Alpha LLC");
+Alpha_LLC.TaxId  = "1234567890";
+Alpha_LLC.Type   = "Customer";
+
+Supplier_LLC = Counterparties.Create("0002", "MaterialPlus LLC");
+Supplier_LLC.Type = "Supplier";
+
+Goods = Catalog("Goods");
+Flour = Goods.Create("G001", "Wheat flour, 1 kg");
+Flour.Unit = "kg"; Flour.Price = 45;
+
+Sugar = Goods.Create("G002", "Granulated sugar, 1 kg");
+Sugar.Unit = "kg"; Sugar.Price = 32;
+
+Oil   = Goods.Create("G003", "Sunflower oil, 1 L");
+Oil.Unit = "L"; Oil.Price = 85;
+
+Message("──── Catalogs loaded ────────────────────────────────────────────");
+Message(StrTemplate("  Counterparties: %1,  Goods: %2",
+    Counterparties.Count(), Goods.Count()));
+
+// ── 2. PURCHASE ORDER ────────────────────────────────────────────────
+PO = Document("PurchaseOrder");
+PO.Date     = '20250110';
+PO.Supplier = Supplier_LLC;
+
+POLines = PO.TabSection("Lines", "Product, Qty, Price, Amount, VAT");
+Ln = POLines.Add(); Ln["Product"] = Flour.Name;
+Ln["Qty"] = 500; Ln["Price"] = Flour.Price; Ln["Amount"] = 500 * Flour.Price;
+Ln["VAT"] = Round(500 * Flour.Price * 0.2, 2);
+
+Ln = POLines.Add(); Ln["Product"] = Sugar.Name;
+Ln["Qty"] = 300; Ln["Price"] = Sugar.Price; Ln["Amount"] = 300 * Sugar.Price;
+Ln["VAT"] = Round(300 * Sugar.Price * 0.2, 2);
+
+Ln = POLines.Add(); Ln["Product"] = Oil.Name;
+Ln["Qty"] = 200; Ln["Price"] = Oil.Price; Ln["Amount"] = 200 * Oil.Price;
+Ln["VAT"] = Round(200 * Oil.Price * 0.2, 2);
+PO.Post();
+
+POTotal = POLines.Total("Amount"); POVat = POLines.Total("VAT");
+Message("");
+Message("──── Purchase Order #" + PO.Number + " dated " + String(PO.Date) + " ──────────────────────");
+For Each Ln In POLines Do
+    Message(StrTemplate("  %-36s  %5s pcs.  %8s",
+        Ln["Product"], Ln["Qty"], Format(Ln["Amount"],"ЧДЦ=2")));
+EndDo;
+Message(StrTemplate("  Subtotal: %1  |  VAT: %2  |  Total: %3",
+    Format(POTotal,"ЧДЦ=2"), Format(POVat,"ЧДЦ=2"), Format(POTotal+POVat,"ЧДЦ=2")));
+
+// ── 3. SALES INVOICE ─────────────────────────────────────────────────
+SI = Document("SalesInvoice");
+SI.Date     = '20250115';
+SI.Customer = Alpha_LLC;
+SI.Terms    = "Net 14 days";
+
+SILines = SI.TabSection("Lines", "Product, Qty, Price, Amount, VAT");
+Ln = SILines.Add(); Ln["Product"] = Flour.Name;
+Ln["Qty"] = 400; Ln["Price"] = 64; Ln["Amount"] = 400 * 64;
+Ln["VAT"] = Round(400 * 64 * 0.2, 2);
+
+Ln = SILines.Add(); Ln["Product"] = Sugar.Name;
+Ln["Qty"] = 250; Ln["Price"] = 44; Ln["Amount"] = 250 * 44;
+Ln["VAT"] = Round(250 * 44 * 0.2, 2);
+
+Ln = SILines.Add(); Ln["Product"] = Oil.Name;
+Ln["Qty"] = 150; Ln["Price"] = 116; Ln["Amount"] = 150 * 116;
+Ln["VAT"] = Round(150 * 116 * 0.2, 2);
+SI.Post();
+
+SITotal = SILines.Total("Amount"); SIVat = SILines.Total("VAT");
+Message("");
+Message("──── Sales Invoice #" + SI.Number + " dated " + String(SI.Date) + " ────────────────────────");
+Message(StrTemplate("  Customer: %1  |  %2", SI.Customer, SI.Terms));
+For Each Ln In SILines Do
+    Message(StrTemplate("  %-36s  %5s pcs.  %8s",
+        Ln["Product"], Ln["Qty"], Format(Ln["Amount"],"ЧДЦ=2")));
+EndDo;
+Message(StrTemplate("  Revenue (ex-VAT): %1  |  VAT: %2  |  Total: %3",
+    Format(SITotal,"ЧДЦ=2"), Format(SIVat,"ЧДЦ=2"), Format(SITotal+SIVat,"ЧДЦ=2")));
+
+// ── 4. ACCOUNTING ENTRIES ────────────────────────────────────────────
+CoA = ChartOfAccounts("General");
+CoA.AddAccount("20","Inventory"); CoA.AddAccount("36","Receivables");
+CoA.AddAccount("40","Payables");  CoA.AddAccount("70","Revenue");
+CoA.AddAccount("90","COGS");      CoA.AddAccount("92","Admin");
+
+Reg = AccountingRegister("Journal", CoA);
+Reg.Провести('20250110',"PO-0001","Inventory received",  "20","40", POTotal);
+Reg.Провести('20250115',"SI-0001","Revenue recognition", "36","70", SITotal);
+COGS = 400 * Flour.Price + 250 * Sugar.Price + 150 * Oil.Price;
+Reg.Провести('20250115',"SI-0001","Cost of goods sold",  "90","20", COGS);
+Reg.Провести('20250131',"AD-001", "Admin expenses",      "92","40",  4500);
+
+// ── 5. INCOME STATEMENT ──────────────────────────────────────────────
+Message("");
+Message("══════════════════════════════════════════════════════════════════════");
+Message("         INCOME STATEMENT · Alpha LLC · January 2025");
+Message("══════════════════════════════════════════════════════════════════════");
+PS = '20250101'; PE = '20250131';
+T70 = Reg.Turnover(CoA.FindByCode("70"), PS, PE);
+T90 = Reg.Turnover(CoA.FindByCode("90"), PS, PE);
+T92 = Reg.Turnover(CoA.FindByCode("92"), PS, PE);
+Revenue    = T70["CtTurnover"];
+COGSAmt    = T90["DtTurnover"];
+GrossProfit = Revenue - COGSAmt;
+AdminExp   = T92["DtTurnover"];
+OperProfit  = GrossProfit - AdminExp;
+Margin     = Round(OperProfit / Revenue * 100, 1);
+Message(StrTemplate("  %-44s  %12s", "Revenue from sales",        Format(Revenue,"ЧДЦ=2")));
+Message(StrTemplate("  %-44s  %12s", "Cost of goods sold",        "(" + Format(COGSAmt,"ЧДЦ=2") + ")"));
+Message(StrTemplate("  %-44s  %12s", "GROSS PROFIT",              Format(GrossProfit,"ЧДЦ=2")));
+Message(StrTemplate("  %-44s  %12s", "Administrative expenses",   "(" + Format(AdminExp,"ЧДЦ=2") + ")"));
+Message(StrTemplate("  %-44s  %12s", "OPERATING PROFIT",          Format(OperProfit,"ЧДЦ=2")));
+Message(StrTemplate("  %-44s  %11s%%", "Operating margin:",        String(Margin)));
+Message("══════════════════════════════════════════════════════════════════════");
+Message("  1S: ERP — Catalogs + Documents + Accounting (English) — completed");
+Message("══════════════════════════════════════════════════════════════════════");

@@ -1,0 +1,42 @@
+###############################################################################
+# 1S: ERP Free Edition — Docker Compose
+# Start:  docker compose up -d
+# Stop:   docker compose down
+# Logs:   docker compose logs -f
+###############################################################################
+version: "3.9"
+
+services:
+  app:
+    build: .
+    image: 1s-erp:latest
+    container_name: 1s-erp
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist users.json and secret.key between restarts
+      - ./data/config:/app/config
+    environment:
+      - PYTHONUTF8=1
+      - FLASK_ENV=production
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/v1/ping')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.1s-erp.rule=Host(`erp.yourdomain.com`)"
+      - "traefik.http.routers.1s-erp.entrypoints=websecure"
+      - "traefik.http.routers.1s-erp.tls.certresolver=le"
+
+  # Optional: Nginx reverse proxy (uncomment for production)
+  # nginx:
+  #   image: nginx:alpine
+  #   ports: ["80:80", "443:443"]
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf
+  #   depends_on: [app]

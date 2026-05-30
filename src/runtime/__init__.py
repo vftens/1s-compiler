@@ -19,6 +19,11 @@ from .registers import (
     РегістрВідомостей, ГрафікРоботи,
 )
 from .query import _Query, QueryResult, Запрос, Query
+from .catalogs import (
+    Catalog, Document, TabularSection,
+    _CatalogItem, _CatalogSelection,
+    Справочник, Довідник, Документ,
+)
 
 __all__ = [
     # Types
@@ -82,4 +87,8 @@ __all__ = [
 
     # Query
     "_Query", "QueryResult", "Запрос", "Query",
+
+    # Catalogs + Documents
+    "Catalog", "Document", "TabularSection",
+    "Справочник", "Довідник", "Документ",
 ]
