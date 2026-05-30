@@ -82,6 +82,12 @@ SCRIPTS: dict[str, dict] = {
                         "desc": "Начисление ЗП, НДФЛ, страховые взносы, отпуска"},
     "hrm_zup":         {"title": "ЗУП: Классификаторы",        "module": "ЗУП",
                         "desc": "Инфобаза ЗУП, графики работы, штатное расписание"},
+    "chess_uk":        {"title": "Шахматка (UA)",               "module": "Бухгалтерия",
+                        "desc": "Шахматна відомість Дт×Кт — оборотна матриця рахунків"},
+    "chess_ru":        {"title": "Шахматная ведомость",         "module": "Бухгалтерия",
+                        "desc": "Матрица оборотов Дт×Кт по всем счетам за период"},
+    "chess_en":        {"title": "Chess Board (EN)",            "module": "Бухгалтерия",
+                        "desc": "Debit × Credit cross-tab matrix of all account turnovers"},
 }
 
 MODULE_ICONS = {

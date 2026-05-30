@@ -422,6 +422,7 @@ class _Map:
 
 Соответствие = _Map
 Відповідність = _Map
+Map = _Map           # English alias
 
 
 class _KeyValue:

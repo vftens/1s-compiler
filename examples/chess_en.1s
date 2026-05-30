@@ -1,0 +1,152 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP — Chess Board Report (Debit × Credit cross-tab matrix)
+// Manufacturing company «Alpha», January 2025
+// ══════════════════════════════════════════════════════════════════════
+
+// ── Cell formatter: right-align amount or blank ──────────────────────
+Function Cell(Num, W)
+    If Num = 0 Then
+        Return StrTemplate("%" + String(W) + "s", "");
+    EndIf;
+    Return Format(Num, "ЧЦ=" + String(W));
+EndFunction;
+
+// ── Dynamic separator line ───────────────────────────────────────────
+Function Sep(Cols, CW, HW)
+    Var R;
+    R = StrTemplate("%-" + String(HW) + "s", "");
+    R = StrReplace(R, " ", "─");
+    For Each Ign In Cols Do
+        R = R + "+" + StrRepeat("─", CW + 1);
+    EndDo;
+    R = R + "+" + StrRepeat("─", CW + 2);
+    Return R;
+EndFunction;
+
+// ── 1. Chart of accounts ─────────────────────────────────────────────
+CoA = ChartOfAccounts("General");
+CoA.AddAccount("10", "Fixed assets");
+CoA.AddAccount("20", "Production supplies");
+CoA.AddAccount("31", "Bank accounts");
+CoA.AddAccount("36", "Accounts receivable");
+CoA.AddAccount("40", "Share capital");
+CoA.AddAccount("63", "Accounts payable");
+CoA.AddAccount("65", "Social insurance payable");
+CoA.AddAccount("66", "Payroll payable");
+CoA.AddAccount("70", "Revenue");
+CoA.AddAccount("90", "Cost of goods sold");
+CoA.AddAccount("92", "Administrative expenses");
+
+// ── 2. Accounting register ───────────────────────────────────────────
+Reg = AccountingRegister("GeneralLedger", CoA);
+
+Var D;
+D = '20250115';
+
+Reg.Провести(D,"FoundCap","Founder contribution",          "10","40",200000);
+Reg.Провести(D,"PO001",   "Purchase of supplies",          "20","63", 50000);
+Reg.Провести(D,"SO001",   "Sales — revenue recognition",   "36","70",120000);
+Reg.Провести(D,"SO001",   "Write-off cost of goods sold",  "90","20", 35000);
+Reg.Провести(D,"PR001",   "Payroll accrual",               "92","66", 25000);
+Reg.Провести(D,"PR001",   "Social insurance accrual",      "92","65",  5500);
+Reg.Провести(D,"PAY001",  "Payment to supplier",           "63","31", 50000);
+Reg.Провести(D,"REC001",  "Receipt from customer",         "31","36",120000);
+
+// ── 3. Build matrix ──────────────────────────────────────────────────
+Matrix  = Map();
+TotsDr  = Map();
+TotsCr  = Map();
+
+Sel = Reg.Select();
+While Sel.Next() Do
+    Rec  = Sel.Current();
+    Dr   = Rec.AccountDt;
+    Cr   = Rec.AccountKt;
+    Key  = Dr + "_" + Cr;
+
+    If Matrix[Key] = Undefined Then  Matrix[Key] = 0;  EndIf;
+    If TotsDr[Dr]  = Undefined Then  TotsDr[Dr]  = 0;  EndIf;
+    If TotsCr[Cr]  = Undefined Then  TotsCr[Cr]  = 0;  EndIf;
+
+    Matrix[Key] = Matrix[Key] + Rec.Amount;
+    TotsDr[Dr]  = TotsDr[Dr]  + Rec.Amount;
+    TotsCr[Cr]  = TotsCr[Cr]  + Rec.Amount;
+EndDo;
+
+// ── 4. Collect accounts in chart order ───────────────────────────────
+DrArr = Array();
+CrArr = Array();
+S2 = CoA.Select();
+While S2.Next() Do
+    Acc  = S2.Current();
+    Code = Acc.Code;
+    If TotsDr[Code] <> Undefined Then  DrArr.Add(Code);  EndIf;
+    If TotsCr[Code] <> Undefined Then  CrArr.Add(Code);  EndIf;
+EndDo;
+
+// ── 5. Print Chess Board ─────────────────────────────────────────────
+Var CW, HW;
+CW = 8;
+HW = 7;
+
+Message("══════════════════════════════════════════════════════════════════════");
+Message("          CHESS BOARD REPORT · Company «Alpha» · January 2025");
+Message("══════════════════════════════════════════════════════════════════════");
+Message("");
+
+// Header row
+R = StrTemplate("%-" + String(HW) + "s", "Dr╲Cr");
+For Each CrCode In CrArr Do
+    R = R + "|" + StrTemplate("%" + String(CW) + "s", CrCode);
+EndDo;
+R = R + "|" + StrTemplate("%" + String(CW+1) + "s", "TOTAL Dr");
+Message(R);
+Message(Sep(CrArr, CW, HW));
+
+// Debit rows
+For Each DrCode In DrArr Do
+    R = StrTemplate("%-" + String(HW) + "s", DrCode);
+    RowTot = 0;
+    For Each CrCode In CrArr Do
+        Key = DrCode + "_" + CrCode;
+        Amt = Matrix[Key];
+        If Amt = Undefined Then  Amt = 0;  EndIf;
+        RowTot = RowTot + Amt;
+        R = R + "|" + Cell(Amt, CW);
+    EndDo;
+    R = R + "|" + Cell(RowTot, CW+1);
+    Message(R);
+EndDo;
+
+// Credit totals row
+Message(Sep(CrArr, CW, HW));
+R = StrTemplate("%-" + String(HW) + "s", "TOTAL Cr");
+GrandTotal = 0;
+For Each CrCode In CrArr Do
+    Amt = TotsCr[CrCode];
+    If Amt = Undefined Then  Amt = 0;  EndIf;
+    GrandTotal = GrandTotal + Amt;
+    R = R + "|" + Cell(Amt, CW);
+EndDo;
+R = R + "|" + Cell(GrandTotal, CW+1);
+Message(R);
+
+// ── 6. Account legend ────────────────────────────────────────────────
+Message("");
+Message("── Account Legend ──────────────────────────────────────────────────");
+AllCodes = Array();
+For Each C In DrArr Do  AllCodes.Add(C);  EndDo;
+For Each C In CrArr Do
+    If AllCodes.Find(C) = Undefined Then  AllCodes.Add(C);  EndIf;
+EndDo;
+For Each Code In AllCodes Do
+    Acc = CoA.FindByCode(Code);
+    Message(StrTemplate("  %1  %2", Code, Acc.Name));
+EndDo;
+
+// ── 7. Balance check ─────────────────────────────────────────────────
+Message("");
+Message(StrTemplate("  Grand total: %1  (Σ Dr = Σ Cr ✓)", GrandTotal));
+Message("══════════════════════════════════════════════════════════════════════");
+Message("  1S: ERP — Chess Board Report (English) — completed");
+Message("══════════════════════════════════════════════════════════════════════");

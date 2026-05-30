@@ -296,6 +296,28 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "uk": "Додати користувача",
         "en": "Add User",
     },
+
+    # ── Chess Board ───────────────────────────────────────────────────────────
+    "chess_title": {
+        "ru": "Шахматная ведомость",
+        "uk": "Шахматна відомість",
+        "en": "Chess Board Report",
+    },
+    "chess_desc": {
+        "ru": "Матрица оборотов Дт×Кт: наглядный перекрёстный анализ всех счетов",
+        "uk": "Матриця оборотів Дт×Кт: наочний перехресний аналіз усіх рахунків",
+        "en": "Debit×Credit turnover matrix: cross-tab view of all accounts",
+    },
+    "chess_dr":    {"ru": "Дт",      "uk": "Дт",      "en": "Dr"},
+    "chess_cr":    {"ru": "Кт",      "uk": "Кт",      "en": "Cr"},
+    "chess_total_dr": {"ru": "ИТОГО Дт", "uk": "РАЗОМ Дт", "en": "TOTAL Dr"},
+    "chess_total_cr": {"ru": "ИТОГО Кт", "uk": "РАЗОМ Кт", "en": "TOTAL Cr"},
+    "chess_legend":   {"ru": "Условные обозначения", "uk": "Легенда", "en": "Legend"},
+    "chess_balance":  {
+        "ru": "Итого оборотов: {n}  (Σ Дт = Σ Кт ✓)",
+        "uk": "Загальний оборот: {n}  (Σ Дт = Σ Кт ✓)",
+        "en": "Grand total: {n}  (Σ Dr = Σ Cr ✓)",
+    },
 }
 
 

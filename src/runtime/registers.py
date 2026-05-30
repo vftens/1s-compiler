@@ -36,6 +36,16 @@ class Account:
     def Код(self): return self.code
     @property
     def Наименование(self): return self.name
+    # Ukrainian aliases
+    @property
+    def Назва(self): return self.name
+    @property
+    def Найменування(self): return self.name
+    # English alias
+    @property
+    def Name(self): return self.name
+    @property
+    def Code(self): return self.code
 
 
 class ChartOfAccounts:
@@ -166,6 +176,17 @@ class _PostingPair:
     @property
     def AccountKt(self) -> str:
         return self.credit_account.code if self.credit_account else ""
+    @property
+    def NameDt(self) -> str:
+        return self.debit_account.name if self.debit_account else ""
+    @property
+    def NameKt(self) -> str:
+        return self.credit_account.name if self.credit_account else ""
+    # Ukrainian
+    @property
+    def НазваДт(self): return self.NameDt
+    @property
+    def НазваКт(self): return self.NameKt
     @property
     def SubcontoDt(self): return self.subconto_debit
     @property
