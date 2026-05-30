@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% block title %}Редактор — 1S: ERP{% endblock %}
+
+{% block extra_head %}
+<style>
+.editor-layout{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;
+               gap:12px;height:calc(100vh - var(--header-h) - 72px)}
+.editor-toolbar{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.editor-toolbar .filename-input{
+  font-family:monospace;font-size:13px;padding:6px 10px;
+  border:1px solid var(--border);border-radius:5px;width:220px;outline:none}
+.editor-toolbar .filename-input:focus{border-color:var(--blue-mid)}
+.editor-pane{display:flex;flex-direction:column;min-height:0}
+.pane-label{font-size:11px;font-weight:700;color:var(--text-muted);
+            letter-spacing:1px;text-transform:uppercase;padding:0 0 6px}
+.monaco-host{flex:1;border-radius:8px;overflow:hidden;
+             box-shadow:0 2px 8px rgba(0,0,0,.15);min-height:300px}
+
+/* Output terminal */
+.output-pane{display:flex;flex-direction:column;min-height:0}
+.terminal-wrap{flex:1;background:#1e1e1e;border-radius:8px;overflow:hidden;
+               box-shadow:0 4px 16px rgba(0,0,0,.3);display:flex;flex-direction:column}
+.terminal-bar{background:#2d2d2d;padding:8px 14px;display:flex;align-items:center;gap:8px;
+              flex-shrink:0}
+.terminal-bar .dot{width:11px;height:11px;border-radius:50%}
+.dot-red{background:#ff5f57}.dot-yellow{background:#ffbd2e}.dot-green{background:#28c840}
+.terminal-bar .t-title{flex:1;text-align:center;font-size:12px;color:#888;font-family:monospace}
+#terminal-out{flex:1;background:#1e1e1e;color:#d4d4d4;padding:14px 18px;
+              overflow-y:auto;font-family:'Cascadia Code','Consolas',monospace;
+              font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-all}
+.line-err {color:#f48771}.line-sep{color:#569cd6;font-weight:bold}
+.line-head{color:#4ec9b0;font-weight:bold}.line-num{color:#b5cea8}
+.cursor{display:inline-block;width:8px;height:14px;background:#d4d4d4;
+        vertical-align:middle;animation:blink 1s step-end infinite;margin-left:2px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+#status-badge{font-size:12px;padding:4px 10px;border-radius:12px;font-weight:600;
+              background:#e3f2fd;color:var(--blue-mid)}
+#status-badge.running{background:#fff3e0;color:#e65100}
+#status-badge.done   {background:#e8f5e9;color:#2e7d32}
+#status-badge.error  {background:#ffebee;color:#c62828}
+
+/* File list panel */
+.file-chip{display:inline-flex;align-items:center;gap:5px;background:#e3f2fd;
+           border-radius:4px;padding:3px 8px;font-size:12px;cursor:pointer;
+           border:1px solid transparent;transition:all .15s}
+.file-chip:hover{border-color:var(--blue-mid)}
+.file-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="editor-toolbar">
+  <strong style="font-size:15px;color:var(--blue-dark)">✏️ Редактор 1S</strong>
+
+  <!-- Quick-load existing scripts -->
+  <div class="file-chips" id="file-chips">
+    {% for name, meta in scripts.items() %}
+    <span class="file-chip" onclick="loadScript('{{ name }}')">
+      {{ meta.title }}
+    </span>
+    {% endfor %}
+  </div>
+
+  <input id="filename" class="filename-input" value="my_script.1s"
+         placeholder="имя_файла.1s" spellcheck="false">
+  <button class="btn btn-primary" id="btn-run" onclick="runCode()">▶ Запустить</button>
+  <button class="btn btn-ghost"   onclick="clearOutput()">🗑</button>
+  <button class="btn btn-ghost"   onclick="copyOutput()">⎘</button>
+  <span id="status-badge">ожидание</span>
+</div>
+
+<div class="editor-layout">
+  <!-- Monaco editor -->
+  <div class="editor-pane">
+    <div class="pane-label">Исходный код .1s</div>
+    <div class="monaco-host" id="monaco-host"></div>
+  </div>
+
+  <!-- Output terminal -->
+  <div class="output-pane">
+    <div class="pane-label">Вывод программы</div>
+    <div class="terminal-wrap">
+      <div class="terminal-bar">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="t-title" id="run-title">— готов —</span>
+        <button class="copy-btn" style="background:none;border:1px solid #555;color:#999;
+                font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer"
+                onclick="copyOutput()">⎘ Копировать</button>
+      </div>
+      <div id="terminal-out">
+        <span style="color:#608b4e">// Напишите код слева и нажмите ▶ Запустить</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Monaco from CDN (no install needed) -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+<script>
+const SCRIPTS = {{ scripts | tojson }};
+let editor = null;
+let es = null;
+let lineCount = 0;
+
+// ── Bootstrap Monaco ────────────────────────────────────────────────────────
+require.config({
+  paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }
+});
+require(['vs/editor/editor.main'], function () {
+
+  // Register '1s' language for basic syntax highlighting
+  monaco.languages.register({ id: 'oneslang' });
+  monaco.languages.setMonarchTokensProvider('oneslang', {
+    defaultToken: '',
+    keywords: [
+      'Функция','Процедура','КонецФункции','КонецПроцедуры',
+      'Если','Тогда','ИначеЕсли','Иначе','КонецЕсли',
+      'Для','По','Из','Цикл','КонецЦикла','Пока',
+      'Каждого','Каждому','Возврат','Прервать','Продолжить',
+      'Перем','Знач','Попытка','Исключение','КонецПопытки',
+      'ВызватьИсключение','Новый',
+      'Истина','Ложь','Неопределено','Null',
+      // Ukrainian
+      'Функція','Процедура','КінецьФункції','КінецьПроцедури',
+      'Якщо','Тоді','ІнакшеЯкщо','Інакше','КінецьЯкщо',
+      'Для','По','З','Цикл','КінецьЦиклу','Поки',
+      'Кожного','Повернути','Перервати','Продовжити',
+      'Змінна','Знач','Спроба','Виняток','КінецьСпроби',
+    ],
+    builtins: [
+      'Сообщить','Сообщение','Массив','Соответствие','Структура',
+      'ТаблицаЗначений','Формат','СтрШаблон','Найти','Лев','Прав','Сред',
+      'Повідомити','Масив','Відповідність','ТаблицяЗначень',
+      'ШаблонРядка','ПланРахунків','РегістрБухгалтерії','РегістрНакопичення',
+    ],
+    tokenizer: {
+      root: [
+        [/\/\/.*$/, 'comment'],
+        [/"([^"\\]|\\.)*"/, 'string'],
+        [/'([^'\\]|\\.)*'/, 'string'],
+        [/\b\d+\.\d+\b/, 'number.float'],
+        [/\b\d+\b/, 'number'],
+        [/[А-ЯЁа-яёІіЄєЇїҐґA-Za-z_][А-ЯЁа-яёІіЄєЇїҐґA-Za-z0-9_]*/, {
+          cases: {
+            '@keywords': 'keyword',
+            '@builtins': 'type',
+            '@default': 'identifier'
+          }
+        }],
+        [/[+\-*/%=<>!&|]/, 'operator'],
+        [/[;,.()\[\]{}]/, 'delimiter'],
+      ]
+    }
+  });
+
+  monaco.editor.defineTheme('1s-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'keyword',   foreground: '569CD6', fontStyle: 'bold' },
+      { token: 'type',      foreground: '4EC9B0' },
+      { token: 'comment',   foreground: '608B4E', fontStyle: 'italic' },
+      { token: 'string',    foreground: 'CE9178' },
+      { token: 'number',    foreground: 'B5CEA8' },
+      { token: 'operator',  foreground: 'D4D4D4' },
+    ],
+    colors: {}
+  });
+
+  editor = monaco.editor.create(document.getElementById('monaco-host'), {
+    language: 'oneslang',
+    theme: '1s-dark',
+    value: defaultCode(),
+    fontSize: 13,
+    lineNumbers: 'on',
+    minimap: { enabled: false },
+    automaticLayout: true,
+    scrollBeyondLastLine: false,
+    fontFamily: "'Cascadia Code', 'Consolas', 'Courier New', monospace",
+    tabSize: 4,
+    wordWrap: 'on',
+  });
+
+  // Ctrl+Enter / Cmd+Enter → Run
+  editor.addCommand(
+    monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
+    () => runCode()
+  );
+});
+
+function defaultCode() {
+  return `// 1S: ERP — новый скрипт\n// Ctrl+Enter = Запустить\n\nПовідомити("Привіт, 1S!");\n\nПерем Сума;\nСума = 0;\nДля Н = 1 По 10 Цикл\n    Сума = Сума + Н;\nКонецЦикла;\n\nПовідомити(ШаблонРядка("Сума 1..10 = %1", Сума));\n`;
+}
+
+// ── Load existing script from examples ──────────────────────────────────────
+function loadScript(name) {
+  fetch('/source/' + name)
+    .then(r => r.json())
+    .then(d => {
+      if (editor) editor.setValue(d.source);
+      document.getElementById('filename').value = name + '.1s';
+      document.getElementById('run-title').textContent = name + '.1s — вывод';
+    })
+    .catch(() => alert('Не удалось загрузить: ' + name));
+}
+
+// ── Run code ────────────────────────────────────────────────────────────────
+function runCode() {
+  if (es) { es.close(); es = null; }
+  const code   = editor ? editor.getValue() : '';
+  const fname  = document.getElementById('filename').value || 'script.1s';
+  const term   = document.getElementById('terminal-out');
+  const badge  = document.getElementById('status-badge');
+  const btnRun = document.getElementById('btn-run');
+
+  term.innerHTML = '';
+  lineCount = 0;
+  badge.className = 'running';
+  badge.textContent = '⏳ выполняется…';
+  btnRun.disabled = true;
+  document.getElementById('run-title').textContent = fname;
+
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor'; cursor.id = 'cursor';
+  term.appendChild(cursor);
+
+  // POST code → server, get back an SSE stream key
+  fetch('/editor/run', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({code, filename: fname})
+  })
+  .then(r => r.json())
+  .then(({run_id}) => {
+    es = new EventSource('/editor/stream/' + run_id);
+    es.onmessage = function(e) {
+      if (e.data === '__DONE__') {
+        es.close(); es = null;
+        document.getElementById('cursor')?.remove();
+        badge.className = 'done';
+        badge.textContent = `✓ завершено (${lineCount} строк)`;
+        btnRun.disabled = false;
+        return;
+      }
+      lineCount++;
+      const cur = document.getElementById('cursor');
+      const div = document.createElement('div');
+      div.innerHTML = colorLine(e.data);
+      if (cur) term.insertBefore(div, cur); else term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    };
+    es.onerror = function() {
+      if (es) { es.close(); es = null; }
+      document.getElementById('cursor')?.remove();
+      badge.className = 'error';
+      badge.textContent = '✗ ошибка';
+      btnRun.disabled = false;
+    };
+  });
+}
+
+function clearOutput() {
+  if (es) { es.close(); es = null; }
+  document.getElementById('terminal-out').innerHTML =
+    '<span style="color:#608b4e">// Очищено.</span>';
+  const b = document.getElementById('status-badge');
+  b.className = ''; b.textContent = 'ожидание';
+  document.getElementById('btn-run').disabled = false;
+}
+
+function copyOutput() {
+  const text = document.getElementById('terminal-out').innerText;
+  navigator.clipboard.writeText(text);
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function colorLine(text) {
+  const t = text.trim();
+  if (!t) return '<span style="color:#1e1e1e"> </span>';
+  if (t.startsWith('//') || t.startsWith('#')) return `<span class="line-err">${esc(text)}</span>`;
+  if (/^[═─]{4,}|^══/.test(t))               return `<span class="line-sep">${esc(text)}</span>`;
+  if (/ИТОГО|ВСЕГО|TOTAL|РАЗОМ|РАЗОМ/.test(t)) return `<span class="line-head">${esc(text)}</span>`;
+  if (/^\s+[\d\s,.]+$/.test(t))               return `<span class="line-num">${esc(text)}</span>`;
+  return esc(text);
+}
+</script>
+{% endblock %}

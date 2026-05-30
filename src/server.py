@@ -5,11 +5,16 @@ Run:  python -m src.cli serve [--port 5000] [--host 127.0.0.1]
 from __future__ import annotations
 import os
 import sys
+import uuid
+import tempfile
 import subprocess
 from functools import wraps
 from pathlib import Path
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, Response, flash, stream_with_context, jsonify)
+
+# In-memory store for editor run jobs: run_id → tmp_file_path
+_EDITOR_RUNS: dict[str, Path] = {}
 
 ROOT     = Path(__file__).parent.parent
 EXAMPLES = ROOT / "examples"
@@ -266,6 +271,89 @@ def profile_passwd():
         change_password(uname, new_pw)
         flash("Пароль успешно изменён.", "success")
     return redirect(url_for("dashboard"))
+
+
+# ── Editor routes ─────────────────────────────────────────────────────────────
+
+@app.route("/editor")
+@login_required
+def editor():
+    """Monaco-powered script editor."""
+    return render_template("editor.html", scripts=SCRIPTS, user=session["user"])
+
+
+@app.route("/source/<name>")
+@login_required
+def source(name: str):
+    """Return raw .1s source for an example script."""
+    if name not in SCRIPTS:
+        return jsonify({"error": "not found"}), 404
+    path = EXAMPLES / f"{name}.1s"
+    if not path.exists():
+        return jsonify({"error": "file missing"}), 404
+    return jsonify({"source": path.read_text(encoding="utf-8"), "name": name})
+
+
+@app.route("/editor/run", methods=["POST"])
+@login_required
+def editor_run():
+    """Accept POSTed 1S code, save to temp file, return run_id for SSE stream."""
+    data = request.get_json(silent=True) or {}
+    code = data.get("code", "")
+    filename = data.get("filename", "script.1s")
+    # Sanitise filename
+    safe_name = Path(filename).name or "script.1s"
+    if not safe_name.endswith(".1s"):
+        safe_name += ".1s"
+
+    tmp = Path(tempfile.mktemp(suffix=f"_{safe_name}"))
+    tmp.write_text(code, encoding="utf-8")
+
+    run_id = str(uuid.uuid4())
+    _EDITOR_RUNS[run_id] = tmp
+    return jsonify({"run_id": run_id})
+
+
+@app.route("/editor/stream/<run_id>")
+@login_required
+def editor_stream(run_id: str):
+    """SSE: stream output of a previously submitted editor run."""
+    tmp = _EDITOR_RUNS.pop(run_id, None)
+
+    def generate():
+        if tmp is None:
+            yield "data: [ОШИБКА: задача не найдена]\n\n"
+            yield "data: __DONE__\n\n"
+            return
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(ROOT)
+        env["PYTHONUTF8"] = "1"
+        try:
+            proc = subprocess.Popen(
+                [sys.executable, "-m", "src.cli", "run", str(tmp)],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, encoding="utf-8", errors="replace",
+                env=env, cwd=str(ROOT),
+            )
+            for line in proc.stdout:
+                yield f"data: {line.rstrip()}\n\n"
+            proc.wait()
+            if proc.returncode not in (0, 1):
+                yield f"data: ── Код завершения {proc.returncode} ──\n\n"
+        except Exception as exc:
+            yield f"data: [Ошибка: {exc}]\n\n"
+        finally:
+            try:
+                tmp.unlink(missing_ok=True)
+            except Exception:
+                pass
+        yield "data: __DONE__\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

@@ -126,6 +126,10 @@ hr{border:none;border-top:1px solid var(--border);margin:20px 0}
      class="{{ 'active' if request.endpoint == 'dashboard' and not request.args.get('module') }}">
     <span class="icon">🏠</span> Все модули
   </a>
+  <a href="{{ url_for('editor') }}"
+     class="{{ 'active' if request.endpoint == 'editor' }}">
+    <span class="icon">✏️</span> Редактор
+  </a>
 
   <div class="section-title">Модули</div>
   {% set modules_list = [
