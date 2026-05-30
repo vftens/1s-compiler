@@ -20,7 +20,32 @@ ROOT     = Path(__file__).parent.parent
 EXAMPLES = ROOT / "examples"
 
 SUPPORTED_LANGS = {"ru", "uk", "en"}
-DEFAULT_LANG     = "ru"
+
+
+def _detect_lang(s: str) -> str:
+    """'uk-UA,uk;q=0.9' or 'ru_RU' or 'en' → one of 'ru'|'uk'|'en'."""
+    for tag in s.replace(' ', '').split(','):
+        code = tag.split(';')[0].lower().replace('_', '-').split('-')[0]
+        if code in ('uk', 'be'):          return 'uk'
+        if code in ('ru', 'kk', 'ky',
+                    'az', 'uz', 'tg'):   return 'ru'
+        if code:                          return 'en'
+    return 'ru'
+
+
+def _os_lang() -> str:
+    """Detect OS locale once at startup → 'ru' | 'uk' | 'en'."""
+    import locale as _lc
+    try:
+        loc = (_lc.getlocale()[0] or
+               os.environ.get('LANG', os.environ.get('LANGUAGE', '')))
+    except Exception:
+        loc = ''
+    return _detect_lang(loc)
+
+
+# Determined once when the module loads — same for browser and desktop app
+DEFAULT_LANG: str = _os_lang()
 
 # ── Secret key ───────────────────────────────────────────────────────────────
 
@@ -67,63 +92,11 @@ MODULE_ICONS = {
     "ЗУП":         "👥",
 }
 
-# ── Language auto-detection ──────────────────────────────────────────────────
-
-def _detect_lang(accept: str) -> str:
-    """
-    Map Accept-Language header (or Python locale string) → 'ru' | 'uk' | 'en'.
-
-    Priority rules:
-      uk*, be (Belarusian — Cyrillic, close to UK)   → uk
-      ru*, kk* (Kazakh), ky* (Kyrgyz), az* (Azeri)   → ru
-      anything else                                   → en
-    """
-    for tag in accept.replace(' ', '').split(','):
-        code = tag.split(';')[0].lower()          # strip q-factor
-        code = code.split('_')[0].split('-')[0]   # 'uk-UA' → 'uk'
-        if code in ('uk', 'be'):
-            return 'uk'
-        if code in ('ru', 'kk', 'ky', 'az', 'uz', 'tg'):
-            return 'ru'
-        if code:                                  # first non-empty tag decides
-            return 'en'
-    return DEFAULT_LANG
-
-
-def _os_lang() -> str:
-    """
-    Detect OS locale via Python's locale module.
-    Returns one of 'ru', 'uk', 'en'.
-    Used when no HTTP Accept-Language is available (CLI / desktop startup).
-    """
-    import locale
-    try:
-        # Python 3.15+ prefers getlocale(); older versions use getdefaultlocale()
-        loc = locale.getlocale()[0] or ''
-        if not loc:
-            loc = locale.getdefaultlocale()[0] or ''  # type: ignore[attr-defined]
-    except Exception:
-        loc = ''
-    # Also check environment variables as fallback (Linux/macOS)
-    if not loc:
-        import os as _os
-        loc = _os.environ.get('LANG', _os.environ.get('LANGUAGE', ''))
-    return _detect_lang(loc.replace('_', '-'))
-
-
 @app.before_request
 def auto_lang():
-    """
-    Set session language on the very first visit (no explicit choice yet).
-    Priority: session cookie  >  Accept-Language header  >  OS locale.
-    Once set, it stays until the user clicks a flag or session expires.
-    """
+    """First visit: inherit DEFAULT_LANG (detected from OS at startup)."""
     if 'lang' not in session:
-        accept = request.headers.get('Accept-Language', '')
-        if accept:
-            session['lang'] = _detect_lang(accept)
-        else:
-            session['lang'] = _os_lang()
+        session['lang'] = DEFAULT_LANG
 
 
 # ── i18n context processor ───────────────────────────────────────────────────
