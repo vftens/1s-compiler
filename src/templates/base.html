@@ -39,6 +39,13 @@ header .logo span{color:var(--accent)}
 .header-user a{color:#cfd8dc;text-decoration:none}
 .header-user a:hover{color:#fff}
 
+/* ── Contact strip ── */
+.contact-strip{font-size:11px;color:#78909C;display:flex;align-items:center;
+               gap:14px;margin-right:6px}
+.contact-strip a{color:#90A4AE;text-decoration:none;transition:color .15s}
+.contact-strip a:hover{color:#fff}
+.contact-strip .sep{color:#37474F}
+
 /* ── Language switcher ── */
 .lang-switcher{display:flex;align-items:center;gap:2px;margin-right:4px}
 .lang-btn{display:inline-flex;align-items:center;gap:3px;
@@ -119,6 +126,19 @@ hr{border:none;border-top:1px solid var(--border);margin:20px 0}
   <a href="{{ url_for('dashboard') }}" class="logo">1S: <span>ERP</span> Free Edition</a>
   {% if session.user %}
   <div class="header-user">
+
+    <!-- Contact strip: phone + website -->
+    <div class="contact-strip">
+      {% if site.phone %}
+        <a href="tel:{{ site.phone }}">📞 {{ site.phone }}</a>
+        <span class="sep">|</span>
+      {% endif %}
+      {% if site.website %}
+        <a href="{{ site.website }}" target="_blank" rel="noopener">🌐 {{ site.website | replace('https://','') }}</a>
+        <span class="sep">|</span>
+      {% endif %}
+    </div>
+
     <!-- Language switcher -->
     <div class="lang-switcher">
       <a href="{{ url_for('set_lang', code='ru') }}"

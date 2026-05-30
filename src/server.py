@@ -19,6 +19,31 @@ _EDITOR_RUNS: dict[str, Path] = {}
 ROOT     = Path(__file__).parent.parent
 EXAMPLES = ROOT / "examples"
 
+# ── Site config ───────────────────────────────────────────────────────────────
+
+_SITE_DEFAULTS = {
+    "company":     "1S: ERP Free Edition",
+    "phone":       "",
+    "website":     "https://www.1s-compiler.ru",
+    "email":       "",
+    "tagline_ru":  "Система управления предприятием",
+    "tagline_uk":  "Система управління підприємством",
+    "tagline_en":  "Enterprise Management System",
+}
+
+
+def _load_site() -> dict:
+    """Load config/site.json; returns defaults if missing or malformed."""
+    import json as _json
+    cfg = ROOT / "config" / "site.json"
+    try:
+        if cfg.exists():
+            return {**_SITE_DEFAULTS, **_json.loads(cfg.read_text(encoding="utf-8"))}
+    except Exception:
+        pass
+    return dict(_SITE_DEFAULTS)
+
+
 SUPPORTED_LANGS = {"ru", "uk", "en"}
 
 
@@ -123,7 +148,10 @@ def auto_lang():
 def inject_i18n():
     from .i18n import t as build_t
     lang = session.get("lang", DEFAULT_LANG)
-    return {"t": build_t(lang), "lang": lang}
+    site = _load_site()
+    # Pick tagline for current language
+    site["tagline"] = site.get(f"tagline_{lang}", site.get("tagline_ru", ""))
+    return {"t": build_t(lang), "lang": lang, "site": site}
 
 
 # ── Auth decorators ───────────────────────────────────────────────────────────
@@ -437,6 +465,23 @@ def admin_delete():
     elif username:
         delete_user(username)
         flash(f"Пользователь «{username}» удалён.", "success")
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/site", methods=["POST"])
+@admin_required
+def admin_site():
+    """Save site contact settings (phone, website, email)."""
+    import json as _json
+    site = _load_site()
+    for key in ("phone", "website", "email", "tagline_ru", "tagline_uk", "tagline_en"):
+        val = request.form.get(key, "").strip()
+        if val is not None:
+            site[key] = val
+    cfg = ROOT / "config" / "site.json"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text(_json.dumps(site, ensure_ascii=False, indent=2), encoding="utf-8")
+    flash("Контактные данные обновлены.", "success")
     return redirect(url_for("admin"))
 
 

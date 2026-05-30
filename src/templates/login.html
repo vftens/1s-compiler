@@ -48,6 +48,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;
            color:#455A64;font-size:11px}
 
 .footer-note{text-align:center;color:#78909C;font-size:11px;margin-top:20px}
+.contact-block{text-align:center;margin-top:14px;font-size:12px}
+.contact-block a{color:#90CAF9;text-decoration:none;margin:0 6px}
+.contact-block a:hover{color:#fff}
 
 /* Language switcher on login page */
 .lang-bar{display:flex;justify-content:center;gap:6px;margin-bottom:20px}
@@ -73,7 +76,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;
 
   <div class="login-logo">
     <div class="app-name">1S: <span>ERP</span> Free Edition</div>
-    <div class="app-sub">{{ t.login_subtitle }}</div>
+    <div class="app-sub">{{ site.tagline }}</div>
   </div>
 
   <div class="login-card">
@@ -106,6 +109,22 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;
   </div>
 
   <div class="footer-note">{{ t.login_footer }}</div>
+
+  {% if site.phone or site.website or site.email %}
+  <div class="contact-block">
+    {% if site.phone %}
+      <a href="tel:{{ site.phone }}">📞 {{ site.phone }}</a>
+    {% endif %}
+    {% if site.website %}
+      <a href="{{ site.website }}" target="_blank" rel="noopener">
+        🌐 {{ site.website | replace('https://','') }}
+      </a>
+    {% endif %}
+    {% if site.email %}
+      <a href="mailto:{{ site.email }}">✉ {{ site.email }}</a>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 </body>
 </html>
