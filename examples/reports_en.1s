@@ -1,0 +1,143 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP — Financial Reports · Company «Alpha» · January 2025
+//   Part 1: Trial Balance (Turnover & Balance Report)
+//   Part 2: Income Statement (Profit & Loss / P&L)
+// ══════════════════════════════════════════════════════════════════════
+
+Function Cell(Num, W)
+    If Num = 0 Then
+        Return StrTemplate("%" + String(W) + "s", "");
+    EndIf;
+    Return Format(Num, "ЧЦ=" + String(W));
+EndFunction;
+
+// ── 1. Chart of accounts ─────────────────────────────────────────────
+CoA = ChartOfAccounts("General");
+CoA.AddAccount("10", "Fixed assets");
+CoA.AddAccount("20", "Production supplies");
+CoA.AddAccount("31", "Bank accounts");
+CoA.AddAccount("36", "Accounts receivable");
+CoA.AddAccount("40", "Share capital");
+CoA.AddAccount("63", "Accounts payable");
+CoA.AddAccount("65", "Social insurance payable");
+CoA.AddAccount("66", "Payroll payable");
+CoA.AddAccount("70", "Revenue");
+CoA.AddAccount("90", "Cost of goods sold");
+CoA.AddAccount("92", "Administrative expenses");
+
+// ── 2. Accounting register ───────────────────────────────────────────
+Reg = AccountingRegister("Journal", CoA);
+
+BefDate  = '20241231';   // opening balance date (before report period)
+PeriodS  = '20250101';   // period start
+PeriodE  = '20250131';   // period end
+
+// Opening balances (31-Dec-2024)
+Reg.Провести(BefDate,"OpBal","Opening: Fixed assets",  "10","40",150000);
+Reg.Провести(BefDate,"OpBal","Opening: Supplies",      "20","63", 25000);
+
+// January 2025 transactions
+Dt = '20250115';
+Reg.Провести(Dt,"SO001","Revenue recognition",          "36","70",120000);
+Reg.Провести(Dt,"SO001","Cost of goods sold",           "90","20", 35000);
+Reg.Провести(Dt,"PR001","Payroll accrual",              "92","66", 25000);
+Reg.Провести(Dt,"PR001","Social insurance accrual",     "92","65",  5500);
+Reg.Провести(Dt,"PY001","Payment to supplier",          "63","31", 50000);
+Reg.Провести(Dt,"RC001","Receipt from customer",        "31","36",120000);
+Reg.Провести(Dt,"PO001","Purchase of supplies",         "20","63", 50000);
+
+// ══════════════════════════════════════════════════════════════════════
+//  PART 1 — TRIAL BALANCE
+// ══════════════════════════════════════════════════════════════════════
+CW = 9;
+
+Message("══════════════════════════════════════════════════════════════════");
+Message("     TRIAL BALANCE  ·  January 2025");
+Message("══════════════════════════════════════════════════════════════════");
+
+R = StrTemplate("%-4s", "Acc.");
+R = R + "|" + StrTemplate("%" + String(CW) + "s", "Open Dr");
+R = R + "|" + StrTemplate("%" + String(CW) + "s", "Open Cr");
+R = R + "|" + StrTemplate("%" + String(CW) + "s", "Turn Dr");
+R = R + "|" + StrTemplate("%" + String(CW) + "s", "Turn Cr");
+R = R + "|" + StrTemplate("%" + String(CW) + "s", "Close Dr");
+R = R + "|" + StrTemplate("%" + String(CW) + "s", "Close Cr");
+Message(R);
+Message(StrRepeat("─", 4 + (CW + 1) * 6));
+
+TTlOD = 0; TTlOC = 0; TTlTD = 0; TTlTC = 0; TTlCD = 0; TTlCC = 0;
+
+For Each Acc In CoA Do
+    OpBal  = Reg.Balance(Acc, BefDate);
+    Turn   = Reg.Turnover(Acc, PeriodS, PeriodE);
+
+    OpDr = OpBal["Dt"];  OpCr = OpBal["Ct"];
+    TDr  = Turn["DtTurnover"];  TCr  = Turn["CtTurnover"];
+
+    If OpDr + OpCr + TDr + TCr = 0 Then
+        Continue;
+    EndIf;
+
+    Net = OpDr - OpCr + TDr - TCr;
+    If Net >= 0 Then
+        ClDr = Net; ClCr = 0;
+    Else
+        ClDr = 0; ClCr = -Net;
+    EndIf;
+
+    R = StrTemplate("%-4s", Acc.Code);
+    R = R + "|" + Cell(OpDr, CW) + "|" + Cell(OpCr, CW);
+    R = R + "|" + Cell(TDr,  CW) + "|" + Cell(TCr,  CW);
+    R = R + "|" + Cell(ClDr, CW) + "|" + Cell(ClCr, CW);
+    Message(R);
+
+    TTlOD = TTlOD + OpDr; TTlOC = TTlOC + OpCr;
+    TTlTD = TTlTD + TDr;  TTlTC = TTlTC + TCr;
+    TTlCD = TTlCD + ClDr; TTlCC = TTlCC + ClCr;
+EndDo;
+
+Message(StrRepeat("─", 4 + (CW + 1) * 6));
+R = StrTemplate("%-4s", "TOTAL");
+R = R + "|" + Cell(TTlOD, CW) + "|" + Cell(TTlOC, CW);
+R = R + "|" + Cell(TTlTD, CW) + "|" + Cell(TTlTC, CW);
+R = R + "|" + Cell(TTlCD, CW) + "|" + Cell(TTlCC, CW);
+Message(R);
+Message(StrTemplate("  Check: Turn Dr %1 = Turn Cr %2  (Close Dr %3 = Close Cr %4)",
+    TTlTD, TTlTC, TTlCD, TTlCC));
+
+// ══════════════════════════════════════════════════════════════════════
+//  PART 2 — INCOME STATEMENT (P&L)
+// ══════════════════════════════════════════════════════════════════════
+Message("");
+Message("══════════════════════════════════════════════════════════════════");
+Message("     INCOME STATEMENT (P&L)  ·  January 2025");
+Message("══════════════════════════════════════════════════════════════════");
+
+FW = 44; NW = 12;
+
+T70 = Reg.Turnover(CoA.FindByCode("70"), PeriodS, PeriodE);
+T90 = Reg.Turnover(CoA.FindByCode("90"), PeriodS, PeriodE);
+T92 = Reg.Turnover(CoA.FindByCode("92"), PeriodS, PeriodE);
+
+Revenue   = T70["CtTurnover"];
+COGS      = T90["DtTurnover"];
+GrossProfit = Revenue - COGS;
+AdminExp  = T92["DtTurnover"];
+OperProfit = GrossProfit - AdminExp;
+Margin    = Round(OperProfit / Revenue * 100, 1);
+
+Sep = StrRepeat("─", FW + NW + 3);
+
+Message(StrTemplate("%-" + String(FW) + "s  %s", "Line item", "Amount"));
+Message(Sep);
+Message(StrTemplate("%-" + String(FW) + "s  %s", "Revenue  (acc. 70)",                Cell(Revenue,    NW)));
+Message(StrTemplate("%-" + String(FW) + "s  %s", "Cost of goods sold  (acc. 90)",      "(" + Cell(COGS,     NW-2) + ")"));
+Message(Sep);
+Message(StrTemplate("%-" + String(FW) + "s  %s", "GROSS PROFIT",                      Cell(GrossProfit, NW)));
+Message(StrTemplate("%-" + String(FW) + "s  %s", "Administrative expenses  (acc. 92)", "(" + Cell(AdminExp, NW-2) + ")"));
+Message(Sep);
+Message(StrTemplate("%-" + String(FW) + "s  %s", "OPERATING PROFIT",                  Cell(OperProfit,  NW)));
+Message(StrTemplate("%-" + String(FW) + "s  %s", "Operating margin:",                  String(Margin) + "%"));
+Message(StrRepeat("═", FW + NW + 3));
+Message("  1S: ERP — Trial Balance + Income Statement (English) — completed");
+Message(StrRepeat("═", FW + NW + 3));
