@@ -1,36 +1,84 @@
-# Python
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 *.so
-*.pyd
 
-# Cython build artifacts
+# ── Cython build artifacts ────────────────────────────────────────────────────
 *.c
+*.html          # Cython annotation HTML
 build/
 dist/
 *.egg-info/
+MANIFEST
 
-# Virtual environments
+# ── Virtual environments ──────────────────────────────────────────────────────
 .venv/
 venv/
 env/
+.env
 
-# pytest
+# ── Packaging ─────────────────────────────────────────────────────────────────
+*.whl
+*.tar.gz
+pip-wheel-metadata/
+
+# ── Testing ───────────────────────────────────────────────────────────────────
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
 
-# IDE
+# ── IDE / editors ─────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
+.project
+.classpath
+*.sublime-workspace
 
-# OS
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# 1S runtime secrets
+# ── Windows installer / PyInstaller ──────────────────────────────────────────
+*.spec
+!1S-ERP.spec
+dist/
+build/
+
+# ── 1S runtime secrets (never commit credentials or session keys) ─────────────
 config/secret.key
 config/users.json
+
+# ── Temporary / generated files ───────────────────────────────────────────────
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+data/
+
+# ── Node / gstack (local tools, not project code) ────────────────────────────
+node_modules/
+.gstack/
+
+# ── Java build ────────────────────────────────────────────────────────────────
+java/target/
+*.class
+*.jar
