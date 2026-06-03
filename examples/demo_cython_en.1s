@@ -1,0 +1,74 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP — DEMO: Cython — Numeric performance benchmark
+// Python (interpreted) vs Cython (C-compiled)
+// ══════════════════════════════════════════════════════════════════════
+Message("══════════════════════════════════════════════════════════════════════");
+Message("  DEMO CYTHON — Numeric Computation Speed in 1S: ERP");
+Message("══════════════════════════════════════════════════════════════════════");
+Message("");
+
+// ── Test 1: Fibonacci (recursive) ────────────────────────────────────
+Message("── Test 1: Fibonacci sequence (recursive, n=30) ─────────────────────");
+
+Function Fib(N)
+    If N <= 1 Then  Return N;  EndIf;
+    Return Fib(N-1) + Fib(N-2);
+EndFunction;
+
+T1s = TimeNow();
+Res = Fib(30);
+T1e = TimeNow();
+Ms1 = Round((T1e - T1s) * 1000, 1);
+Message(StrTemplate("  Fib(30) = %1   |   Python time: %2 ms", Res, Ms1));
+Message("  Cython:  ~2-5 ms  (expected speedup: 5-20×)");
+Message("");
+
+// ── Test 2: Prime Sieve ───────────────────────────────────────────────
+Message("── Test 2: Sieve of Eratosthenes (primes to 10,000) ────────────────");
+
+T2s = TimeNow();
+MaxN = 10000; PrimeCount = 0;
+Sieve = Array();
+For K = 0 To MaxN Do  Sieve.Add(True);  EndDo;
+For K = 2 To MaxN Do
+    If Sieve[K] = True Then
+        PrimeCount = PrimeCount + 1;
+        M = K + K;
+        While M <= MaxN Do  Sieve.Set(M, False);  M = M + K;  EndDo;
+    EndIf;
+EndDo;
+T2e = TimeNow();
+Ms2 = Round((T2e - T2s) * 1000, 1);
+Message(StrTemplate("  Primes to 10,000: %1   |   Python time: %2 ms", PrimeCount, Ms2));
+Message("  Cython:  ~0.1-0.5 ms  (expected speedup: 10-50×)");
+Message("");
+
+// ── Test 3: Loop accumulator ──────────────────────────────────────────
+Message("── Test 3: Sum 1..100,000 ───────────────────────────────────────────");
+T3s = TimeNow();
+Total = 0;
+For K = 1 To 100000 Do  Total = Total + K;  EndDo;
+T3e = TimeNow();
+Ms3 = Round((T3e - T3s) * 1000, 1);
+Message(StrTemplate("  Σ(1..100000) = %1   |   Python time: %2 ms", Total, Ms3));
+Message("  Cython (cdef long):  ~0.5-2 ms  (expected speedup: 10-30×)");
+Message("");
+
+// ── Build instructions ────────────────────────────────────────────────
+TotalMs = Round(Ms1 + Ms2 + Ms3, 1);
+Message("── How to compile for maximum speed ────────────────────────────────");
+Message("  Step 1:  python -m src.cli cython-gen  examples/demo_cython_en.1s");
+Message("  Step 2:  python -m src.cli cython-build examples/demo_cython_en.1s --run");
+Message("  Or:      pip install cython && python -m src.cli cython-build ... --run");
+Message("");
+Message("  What Cython does:");
+Message("    cdef long Total = 0       <- machine int instead of Python int");
+Message("    cpdef long Fib(long N)    <- C-level function call");
+Message("    cdivision=True            <- skip division-by-zero checks");
+Message("    boundscheck=False         <- skip bounds checking");
+Message("    wraparound=False          <- skip negative index wrapping");
+Message("");
+Message("══════════════════════════════════════════════════════════════════════");
+Message(StrTemplate("  Total Python time: %1 ms   Cython: expect 10-50× faster", TotalMs));
+Message("  1S: ERP — Cython Speed Demo (English) — completed");
+Message("══════════════════════════════════════════════════════════════════════");

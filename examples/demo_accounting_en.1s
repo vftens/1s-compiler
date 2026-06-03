@@ -1,0 +1,98 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP — DEMO: Accounting — Full Monthly Cycle
+// Alpha LLC · January 2025 · English · UK GAAP-inspired
+// ══════════════════════════════════════════════════════════════════════
+
+CoA = ChartOfAccounts("Standard");
+CoA.AddAccount("FA", "Fixed assets");       CoA.AddAccount("INV","Inventory");
+CoA.AddAccount("BNK","Bank / Cash");         CoA.AddAccount("RCV","Accounts receivable");
+CoA.AddAccount("PAY","Accounts payable");    CoA.AddAccount("CAP","Share capital");
+CoA.AddAccount("VAT","VAT account");         CoA.AddAccount("SAL","Salaries payable");
+CoA.AddAccount("REV","Revenue");             CoA.AddAccount("CGS","Cost of goods sold");
+CoA.AddAccount("ADM","Admin expenses");
+
+Reg = AccountingRegister("GeneralLedger", CoA);
+
+// Opening balances
+BefDt = '20241231';
+Reg.Провести(BefDt,"Opn","Opening: Fixed assets",   "FA","CAP",450000);
+Reg.Провести(BefDt,"Opn","Opening: Inventory",       "INV","PAY", 85000);
+Reg.Провести(BefDt,"Opn","Opening: Bank",            "BNK","CAP",125000);
+Reg.Провести(BefDt,"Opn","Opening: Receivables",     "RCV","REV", 40000);
+
+Message("══════════════════════════════════════════════════════════════════════");
+Message("  ACCOUNTING  ·  Alpha LLC  ·  January 2025  ·  UK GAAP");
+Message("══════════════════════════════════════════════════════════════════════");
+Message("");
+Message("── 1. Journal entries — January 2025 ───────────────────────────────");
+
+Reg.Провести('20250105',"PO001","Goods received from supplier",    "INV","PAY",120000);
+Reg.Провести('20250105',"PO001","Input VAT 20%",                   "VAT","PAY", 24000);
+Message("  05 Jan  PO001  Goods received from supplier        £120,000");
+
+Reg.Провести('20250115',"SI001","Revenue — sales to customer",     "RCV","REV",180000);
+Reg.Провести('20250115',"SI001","Output VAT 20%",                  "REV","VAT", 36000);
+Reg.Провести('20250115',"SI001","Cost of goods sold",              "CGS","INV", 95000);
+Message("  15 Jan  SI001  Sale to Beta Ltd                    £180,000");
+
+Reg.Провести('20250125',"PR001","Payroll accrual",                 "ADM","SAL", 55000);
+Reg.Провести('20250125',"PR001","Employer NI (13.8%)",             "ADM","PAY",  7590);
+Message("  25 Jan  PR001  Payroll + Employer NI               £ 62,590");
+
+Reg.Провести('20250128',"BK001","Pay salaries",                    "SAL","BNK", 44000);
+Reg.Провести('20250128',"BK002","Pay supplier",                    "PAY","BNK",144000);
+Reg.Провести('20250128',"BK003","Receive from customer",           "BNK","RCV",180000);
+Message("  28 Jan  Bank   Salaries + supplier payment + receipt");
+Message("");
+
+// ── Trial Balance ─────────────────────────────────────────────────────
+Message("── 2. Trial Balance ─────────────────────────────────────────────────");
+PS = '20250101'; PE = '20250131';
+
+Function CV(N, W)
+    If N = 0 Then  Return StrTemplate("%" + String(W) + "s","");  EndIf;
+    Return Format(N, "ЧЦ=" + String(W));
+EndFunction;
+
+Message(StrTemplate("  %-5s %-18s %9s %9s %9s %9s %9s %9s",
+    "Acc", "Name", "Open Dr", "Open Cr", "Turn Dr", "Turn Cr", "Close Dr", "Close Cr"));
+Message(StrRepeat("─", 82));
+TOD = 0; TOC = 0; TTD = 0; TTC = 0; TCD = 0; TCC = 0;
+For Each Acc In CoA Do
+    Op = Reg.Balance(Acc, BefDt); Tr = Reg.Turnover(Acc, PS, PE);
+    OD = Op["Dt"]; OC = Op["Ct"]; TD = Tr["DtTurnover"]; TC = Tr["CtTurnover"];
+    If OD + OC + TD + TC = 0 Then  Continue;  EndIf;
+    Net = OD - OC + TD - TC;
+    If Net >= 0 Then  CD = Net; CC = 0;  Else  CD = 0; CC = -Net;  EndIf;
+    Message(StrTemplate("  %-5s %-18s %9s %9s %9s %9s %9s %9s",
+        Acc.Code, Acc.Name, CV(OD,9),CV(OC,9),CV(TD,9),CV(TC,9),CV(CD,9),CV(CC,9)));
+    TOD=TOD+OD; TOC=TOC+OC; TTD=TTD+TD; TTC=TTC+TC; TCD=TCD+CD; TCC=TCC+CC;
+EndDo;
+Message(StrRepeat("─", 82));
+Message(StrTemplate("  %-24s %9s %9s %9s %9s %9s %9s",
+    "TOTAL:", CV(TOD,9),CV(TOC,9),CV(TTD,9),CV(TTC,9),CV(TCD,9),CV(TCC,9)));
+Message(StrTemplate("  Check: TurnDr=%1 = TurnCr=%2 OK  |  CloseDr=%3 = CloseCr=%4 OK",
+    TTD, TTC, TCD, TCC));
+
+// ── Income Statement ──────────────────────────────────────────────────
+Message("");
+Message("── 3. Income Statement ──────────────────────────────────────────────");
+Revenue   = 180000 - 36000;   // net of VAT
+COGS      = 95000;
+GrossP    = Revenue - COGS;
+AdminExp  = 55000 + 7590;
+OperP     = GrossP - AdminExp;
+Margin    = Round(OperP / Revenue * 100, 1);
+
+Message(StrTemplate("  Revenue (net):                  £%1", Format(Revenue,"ЧДЦ=2")));
+Message(StrTemplate("  Cost of goods sold:            (£%1)", Format(COGS,"ЧДЦ=2")));
+Message(StrRepeat("─", 48));
+Message(StrTemplate("  GROSS PROFIT:                   £%1", Format(GrossP,"ЧДЦ=2")));
+Message(StrTemplate("  Admin & payroll expenses:      (£%1)", Format(AdminExp,"ЧДЦ=2")));
+Message(StrRepeat("─", 48));
+Message(StrTemplate("  OPERATING PROFIT:               £%1", Format(OperP,"ЧДЦ=2")));
+Message(StrTemplate("  Operating margin:                %1%%", Margin));
+Message("");
+Message("══════════════════════════════════════════════════════════════════════");
+Message("  1S: ERP — Accounting full cycle (English) — completed");
+Message("══════════════════════════════════════════════════════════════════════");

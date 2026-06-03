@@ -1,0 +1,115 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP — DEMO: Workflow Dashboard with ASCII Charts (EN)
+// ══════════════════════════════════════════════════════════════════════
+
+Function Bar(Pct, W)
+    Filled = Round(Pct * W / 100, 0);
+    Empty  = W - Filled;
+    Return StrRepeat("#", Filled) + StrRepeat(".", Empty);
+EndFunction;
+
+Function Badge(Status)
+    If Status = "posted"   Then  Return "OK";  EndIf;
+    If Status = "pending"  Then  Return "..";  EndIf;
+    If Status = "rejected" Then  Return "XX";  EndIf;
+    If Status = "approved" Then  Return "++";  EndIf;
+    Return "??";
+EndFunction;
+
+AuditLog1 = AuditLog("Dashboard");
+
+D1 = WorkflowDocument("PurchaseOrder");  D1.Title = "Office equipment purchase";    D1.Amount = 5500;
+D1.Submit("Smith","Please approve"); D1.Approve("Williams","Approved"); D1.Post();
+
+D2 = WorkflowDocument("PurchaseOrder");  D2.Title = "Warehouse renovation";          D2.Amount = 14000;
+D2.Submit("Brown","Capital repairs"); D2.Approve("Williams","Within budget"); D2.Post();
+
+D3 = WorkflowDocument("Contract");       D3.Title = "Supply contract MaterialPlus";  D3.Amount = 32000;
+D3.Submit("Johnson","Annual contract"); D3.Revise("Legal","Clarify clause 3.2");
+D3.Resubmit("Johnson","Clause 3.2 fixed"); D3.Approve("Williams","Approved"); D3.Post();
+AuditLog1.Record("Legal","Review","Contract",D3.Number,"Legal amendment");
+
+D4 = WorkflowDocument("SalesInvoice");   D4.Title = "Sale to Alpha LLC";             D4.Amount = 11000;
+D4.Submit("Warehouse","SI dispatch"); D4.Approve("Williams","OK"); D4.Post();
+
+D5 = WorkflowDocument("SalesInvoice");   D5.Title = "Sale to Beta LLC";              D5.Amount = 7800;
+D5.Submit("Warehouse","SI 2"); D5.Reject("CFO","Exceeds receivables limit");
+AuditLog1.Record("CFO","Reject","SI",D5.Number,"Receivables exceeded");
+
+D6 = WorkflowDocument("LeaveRequest");   D6.Title = "Smith leave 10 days";           D6.Amount = 0;
+D6.Submit("Smith","01-10 Mar 2025"); D6.Approve("Williams","Approved"); D6.Post();
+
+D7 = WorkflowDocument("TravelOrder");    D7.Title = "Business trip to Manchester";   D7.Amount = 1400;
+D7.Submit("Brown","Logistics fair");
+
+D8 = WorkflowDocument("LeaseRenewal");   D8.Title = "Warehouse lease renewal";       D8.Amount = 4200;
+D8.Submit("Johnson","Lease extension");
+
+Docs = Array();
+Docs.Add(D1); Docs.Add(D2); Docs.Add(D3); Docs.Add(D4);
+Docs.Add(D5); Docs.Add(D6); Docs.Add(D7); Docs.Add(D8);
+TotalDocs = 8;
+
+CDraft = 0; CPend = 0; CAppr = 0; CPost = 0; CRej = 0;
+SumPost = 0; SumPend = 0;
+For Each Doc In Docs Do
+    St = Doc.Status;
+    If St = "draft"    Then  CDraft = CDraft + 1;
+    ElseIf St = "pending"  Then  CPend = CPend + 1; SumPend = SumPend + Doc.Amount;
+    ElseIf St = "approved" Then  CAppr = CAppr + 1;
+    ElseIf St = "posted"   Then  CPost = CPost + 1; SumPost = SumPost + Doc.Amount;
+    ElseIf St = "rejected" Then  CRej  = CRej  + 1;
+    EndIf;
+EndDo;
+
+Message("══════════════════════════════════════════════════════════════════════");
+Message("                  WORKFLOW DASHBOARD  ·  Alpha LLC");
+Message("══════════════════════════════════════════════════════════════════════");
+Message("");
+Message("── Document status overview ─────────────────────────────────────────");
+Message("");
+
+Var Pct, Cnt, Lbl;
+Cnt = CPost;  Pct = Round(Cnt*100/TotalDocs,0); Lbl = "Posted      ";
+Message(StrTemplate("  [OK] %1  %2  %3 (%4%%)", Lbl, Bar(Pct,30), Cnt, Pct));
+Cnt = CPend;  Pct = Round(Cnt*100/TotalDocs,0); Lbl = "Pending     ";
+Message(StrTemplate("  [..] %1  %2  %3 (%4%%)", Lbl, Bar(Pct,30), Cnt, Pct));
+Cnt = CAppr;  Pct = Round(Cnt*100/TotalDocs,0); Lbl = "Approved    ";
+Message(StrTemplate("  [++] %1  %2  %3 (%4%%)", Lbl, Bar(Pct,30), Cnt, Pct));
+Cnt = CRej;   Pct = Round(Cnt*100/TotalDocs,0); Lbl = "Rejected    ";
+Message(StrTemplate("  [XX] %1  %2  %3 (%4%%)", Lbl, Bar(Pct,30), Cnt, Pct));
+Cnt = CDraft; Pct = Round(Cnt*100/TotalDocs,0); Lbl = "Draft       ";
+Message(StrTemplate("  [??] %1  %2  %3 (%4%%)", Lbl, Bar(Pct,30), Cnt, Pct));
+
+Message("");
+Message(StrTemplate("  Total docs: %1  |  Posted: £%2  |  Pending approval: £%3",
+    TotalDocs, Format(SumPost,"ЧДЦ=0"), Format(SumPend,"ЧДЦ=0")));
+Message("");
+Message("── Document timeline ────────────────────────────────────────────────");
+Message("");
+
+For Each Doc In Docs Do
+    B = Badge(Doc.Status);
+    Line = StrTemplate("  [%1] #%2  %-42s", B, Doc.Number, Doc.Title);
+    If Doc.Amount > 0 Then  Line = Line + "  £" + Format(Doc.Amount,"ЧДЦ=0");  EndIf;
+    Message(Line);
+    For Each Entry In Doc.History Do
+        Message(StrTemplate("       └─ %1 → %2  (%3)",
+            WF.label(Entry.from_status,"en"),
+            WF.label(Entry.to_status,"en"), Entry.actor));
+    EndDo;
+    Message("");
+EndDo;
+
+Message("── KPI metrics ──────────────────────────────────────────────────────");
+Eff  = Round(CPost*100/TotalDocs,0);
+Appr = Round((CPost+CAppr)*100/TotalDocs,0);
+Rej  = Round(CRej*100/TotalDocs,0);
+Message(StrTemplate("  Throughput (posted):        %1  %2%%", Bar(Eff,  20), Eff));
+Message(StrTemplate("  Approval rate:              %1  %2%%", Bar(Appr, 20), Appr));
+Message(StrTemplate("  Rejection rate:             %1  %2%%", Bar(Rej,  20), Rej));
+Message(StrTemplate("  Audit entries:               %1", AuditLog1.Count()));
+Message("");
+Message("══════════════════════════════════════════════════════════════════════");
+Message("  1S: ERP — Workflow Dashboard (English) — completed");
+Message("══════════════════════════════════════════════════════════════════════");

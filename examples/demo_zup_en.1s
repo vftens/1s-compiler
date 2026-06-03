@@ -1,0 +1,109 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP — DEMO: HRM — Human Resources & Payroll
+// Company «Alpha» · February 2025 · English
+//
+// UK-style payroll tax rates:
+//   Income Tax:          20%  (employee)
+//   National Insurance:  12%  (employee), 13.8% (employer)
+//   Pension (auto):       5%  (employee), 3% (employer)
+// ══════════════════════════════════════════════════════════════════════
+
+IT_Rate   = 0.20;
+NI_Rate   = 0.12;
+NI_Emp    = 0.138;
+Pension_E = 0.05;
+Pension_R = 0.03;
+
+Function CalcPayroll(Position, Name, GrossSalary)
+    IT      = Round(GrossSalary * 0.20,  2);
+    NI      = Round(GrossSalary * 0.12,  2);
+    Pension = Round(GrossSalary * 0.05,  2);
+    NIEmpl  = Round(GrossSalary * 0.138, 2);
+    PensR   = Round(GrossSalary * 0.03,  2);
+    Net     = GrossSalary - IT - NI - Pension;
+    Res = Структура("Position,Name,Gross,IT,NI,Pension,NIEmpl,PensR,Net",
+                     Position, Name, GrossSalary, IT, NI, Pension, NIEmpl, PensR, Net);
+    Return Res;
+EndFunction;
+
+// ── Catalogs ─────────────────────────────────────────────────────────
+Positions = Catalog("Positions");
+Positions.Create("P01","Chief Executive Officer"); Positions.Create("P02","Chief Financial Officer");
+Positions.Create("P03","Sales Manager"); Positions.Create("P04","Logistics Manager");
+Positions.Create("P05","Marketing Manager"); Positions.Create("P06","Warehouse Supervisor");
+
+Staff = Catalog("Employees");
+Emp = Staff.Create("E001","James Williams");
+Emp.Position = "Chief Executive Officer"; Emp.Dept = "Executive"; Emp.Salary = 8500;
+Emp = Staff.Create("E002","Sarah Johnson");
+Emp.Position = "Chief Financial Officer"; Emp.Dept = "Finance"; Emp.Salary = 6200;
+Emp = Staff.Create("E003","Michael Brown");
+Emp.Position = "Sales Manager"; Emp.Dept = "Sales"; Emp.Salary = 4800; Emp.Bonus = 1500;
+Emp = Staff.Create("E004","Emma Davis");
+Emp.Position = "Logistics Manager"; Emp.Dept = "Operations"; Emp.Salary = 4200;
+Emp = Staff.Create("E005","Robert Wilson");
+Emp.Position = "Marketing Manager"; Emp.Dept = "Marketing"; Emp.Salary = 4600;
+Emp = Staff.Create("E006","Lisa Taylor");
+Emp.Position = "Warehouse Supervisor"; Emp.Dept = "Warehouse"; Emp.Salary = 3400;
+
+// ── Payroll Document ──────────────────────────────────────────────────
+PRun = WorkflowDocument("PayrollRun");
+PRun.Period = "February 2025"; PRun.ProcessedBy = "Johnson S.";
+Lines = PRun.TabSection("Lines",
+    "Name, Position, Dept, Gross, Bonus, Total, IT, NI, Pension, Net");
+
+TtlGross = 0; TtlBonus = 0; TtlTotal = 0; TtlIT = 0;
+TtlNI = 0; TtlPension = 0; TtlNIEmpl = 0; TtlPensR = 0; TtlNet = 0;
+
+For Each Emp In Staff Do
+    Gross = Emp.Salary;
+    If Emp.Bonus <> Undefined Then  Bonus = Emp.Bonus;
+    Else                             Bonus = 0;  EndIf;
+    Total = Gross + Bonus;
+    R = CalcPayroll(Emp.Position, Emp.Name, Total);
+    Row = Lines.Add();
+    Row["Name"] = Emp.Name; Row["Position"] = Emp.Position; Row["Dept"] = Emp.Dept;
+    Row["Gross"] = Gross; Row["Bonus"] = Bonus; Row["Total"] = Total;
+    Row["IT"] = R.IT; Row["NI"] = R.NI; Row["Pension"] = R.Pension; Row["Net"] = R.Net;
+    TtlGross = TtlGross + Gross; TtlBonus = TtlBonus + Bonus;
+    TtlTotal = TtlTotal + Total; TtlIT = TtlIT + R.IT; TtlNI = TtlNI + R.NI;
+    TtlPension = TtlPension + R.Pension; TtlNIEmpl = TtlNIEmpl + R.NIEmpl;
+    TtlPensR = TtlPensR + R.PensR; TtlNet = TtlNet + R.Net;
+EndDo;
+
+PRun.Submit("Johnson", "February payroll ready for approval");
+PRun.Approve("Williams (CEO)", "Approved — pay by 25 Feb 2025");
+PRun.Post();
+
+Message("══════════════════════════════════════════════════════════════════════");
+Message("        PAYROLL SUMMARY  ·  " + PRun.Period + "  ·  Alpha LLC");
+Message("        Status: " + PRun.StatusLabel("en"));
+Message("══════════════════════════════════════════════════════════════════════");
+Message(StrTemplate("  %-28s %-24s %8s %7s %8s %7s",
+    "Name", "Position", "Gross £", "IT £", "NI £", "Net £"));
+Message(StrRepeat("─", 88));
+For Each Row In Lines Do
+    Message(StrTemplate("  %-28s %-24s %8s %7s %8s %7s",
+        Row["Name"], Row["Position"],
+        Format(Row["Total"],"ЧДЦ=0"), Format(Row["IT"],"ЧДЦ=0"),
+        Format(Row["NI"],"ЧДЦ=0"), Format(Row["Net"],"ЧДЦ=0")));
+EndDo;
+Message(StrRepeat("─", 88));
+Message(StrTemplate("  %-28s %-24s %8s %7s %8s %7s", "TOTAL", "",
+    Format(TtlTotal,"ЧДЦ=0"), Format(TtlIT,"ЧДЦ=0"),
+    Format(TtlNI,"ЧДЦ=0"), Format(TtlNet,"ЧДЦ=0")));
+
+Message("");
+Message("── Employer cost analysis ───────────────────────────────────────────");
+EmpNI = TtlNIEmpl; EmpPens = TtlPensR;
+Message(StrTemplate("  Total gross payroll:             £%1", Format(TtlTotal,"ЧДЦ=2")));
+Message(StrTemplate("  Employer NI (13.8%%):            £%1", Format(EmpNI,"ЧДЦ=2")));
+Message(StrTemplate("  Employer pension (3%%):          £%1", Format(EmpPens,"ЧДЦ=2")));
+Message(StrRepeat("─", 46));
+Message(StrTemplate("  TOTAL employment cost:           £%1", Format(TtlTotal+EmpNI+EmpPens,"ЧДЦ=2")));
+Message(StrTemplate("  Average take-home pay:           £%1", Format(Round(TtlNet/Staff.Count(),2),"ЧДЦ=2")));
+Message(StrTemplate("  Headcount:                        %1", Staff.Count()));
+Message("");
+Message("══════════════════════════════════════════════════════════════════════");
+Message("  1S: ERP — HRM: Human Resources & Payroll (EN) — completed");
+Message("══════════════════════════════════════════════════════════════════════");

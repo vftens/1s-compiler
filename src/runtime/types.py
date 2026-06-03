@@ -87,6 +87,15 @@ def AddDays(dt, n: int) -> datetime.datetime:
     d = dt if isinstance(dt, (datetime.datetime, datetime.date)) else dt
     return d + datetime.timedelta(days=n)
 
+def TimeNow() -> float:
+    """Return current Unix timestamp in seconds (float). For timing/benchmarks."""
+    import time as _time
+    return _time.time()
+
+# Russian / Ukrainian aliases
+ЧасЗараз  = TimeNow   # Ukrainian: time now
+ВремяСейчас = TimeNow  # Russian
+
 def DayOfWeek(dt) -> int:
     """Returns 1=Mon … 7=Sun (1C convention)."""
     d = dt if isinstance(dt, datetime.date) else dt.date()
