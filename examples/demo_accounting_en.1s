@@ -3,6 +3,11 @@
 // Alpha LLC · January 2025 · English · UK GAAP-inspired
 // ══════════════════════════════════════════════════════════════════════
 
+Function CV(N, W)
+    If N = 0 Then  Return StrTemplate("%" + String(W) + "s","");  EndIf;
+    Return Format(N, "ЧЦ=" + String(W));
+EndFunction;
+
 CoA = ChartOfAccounts("Standard");
 CoA.AddAccount("FA", "Fixed assets");       CoA.AddAccount("INV","Inventory");
 CoA.AddAccount("BNK","Bank / Cash");         CoA.AddAccount("RCV","Accounts receivable");
@@ -48,11 +53,6 @@ Message("");
 // ── Trial Balance ─────────────────────────────────────────────────────
 Message("── 2. Trial Balance ─────────────────────────────────────────────────");
 PS = '20250101'; PE = '20250131';
-
-Function CV(N, W)
-    If N = 0 Then  Return StrTemplate("%" + String(W) + "s","");  EndIf;
-    Return Format(N, "ЧЦ=" + String(W));
-EndFunction;
 
 Message(StrTemplate("  %-5s %-18s %9s %9s %9s %9s %9s %9s",
     "Acc", "Name", "Open Dr", "Open Cr", "Turn Dr", "Turn Cr", "Close Dr", "Close Cr"));
