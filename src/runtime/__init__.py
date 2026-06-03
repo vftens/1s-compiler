@@ -29,6 +29,17 @@ from .workflow import (
     ДокументЗМаршрутом, ДокументСМаршрутом,
 )
 from .audit import AuditLog, AuditEntry, АудитЖурнал
+from .persistence import (
+    save_register, load_register,
+    save_accounting, load_accounting,
+    save_accumulation, load_accumulation,
+    СохранитьРегистр, ЗагрузитьРегистр,
+    ЗберегтиРегістр, ЗавантажитиРегістр,
+)
+from .excel import (
+    ExcelWorkbook, ExcelSheet, ExportCSV,
+    КнигаExcel, ЕксельЗбереження, ЭкспортCSV,
+)
 
 __all__ = [
     # Types
@@ -103,4 +114,8 @@ __all__ = [
 
     # Audit Log
     "AuditLog", "AuditEntry", "АудитЖурнал",
+
+    # Excel / CSV export
+    "ExcelWorkbook", "ExcelSheet", "ExportCSV",
+    "КнигаExcel", "ЕксельЗбереження", "ЭкспортCSV",
 ]

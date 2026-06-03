@@ -1,0 +1,73 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "1S ERP Script",
+  "scopeName": "source.1s",
+  "fileTypes": ["1s", "bsl"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#dates" },
+    { "include": "#keywords" },
+    { "include": "#builtins" },
+    { "include": "#numbers" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-slash.1s",
+      "match": "//.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.1s",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.1s", "match": "\"\"" }
+      ]
+    },
+    "dates": {
+      "name": "constant.other.date.1s",
+      "match": "'\\d{8}'"
+    },
+    "numbers": {
+      "name": "constant.numeric.1s",
+      "match": "\\b\\d+(\\.\\d+)?\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.1s",
+          "match": "(?i)\\b(если|якщо|if|тогда|тоді|then|иначеесли|інакшеякщо|elseif|elsif|иначе|інакше|else|конецесли|кінецьякщо|endif|пока|поки|while|для|for|каждого|кожного|each|из|з|in|по|до|to|цикл|do|конеццикла|кінецьциклу|enddo|прервать|перервати|break|продолжить|продовжити|continue)\\b"
+        },
+        {
+          "name": "keyword.declaration.1s",
+          "match": "(?i)\\b(функция|функція|function|конецфункции|кінецьфункції|endfunction|процедура|procedure|конецпроцедуры|кінецьпроцедури|endprocedure|возврат|повернути|return|перем|змін|var|знач|val|экспорт|експорт|export)\\b"
+        },
+        {
+          "name": "keyword.other.1s",
+          "match": "(?i)\\b(попытка|спроба|try|исключение|виняток|except|конецпопытки|кінецьспроби|endtry|вызватьисключение|викинутивиняток|raise|новый|новий|new)\\b"
+        },
+        {
+          "name": "constant.language.1s",
+          "match": "(?i)\\b(истина|істина|true|ложь|хибність|false|неопределено|невизначено|undefined|null)\\b"
+        }
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {
+          "name": "support.class.1s",
+          "match": "(?i)\\b(ПланСчетов|ПланРахунків|ChartOfAccounts|РегистрБухгалтерии|РегістрБухгалтерії|AccountingRegister|РегистрНакопления|РегістрНакопичення|AccumulationRegister|Справочник|Довідник|Catalog|Документ|Document|WorkflowDocument|ДокументСМаршрутом|ДокументЗМаршрутом|АудитЖурнал|AuditLog|КнигаExcel|ExcelWorkbook|Массив|Масив|Array|Соответствие|Відповідність|Map|Структура|Structure|ТаблицаЗначений|ТаблицяЗначень)\\b"
+        },
+        {
+          "name": "support.function.1s",
+          "match": "(?i)\\b(Сообщить|Повідомити|Message|СтрШаблон|ШаблонРядка|StrTemplate|Формат|Format|Строка|Рядок|String|Число|Number|Окр|Round|Макс|Max|Мин|Min|Абс|Abs|СтрДлина|ДовжинаРядка|StrLen|Лев|Ліво|Left|Прав|Право|Right|СокрЛП|СкорЛП|TrimAll|СтрПовтор|ПовторитиРядок|StrRepeat|ТекущаяДата|ПоточнаДата|CurrentDate|НачалоМесяца|ПочатокМісяця|BegOfMonth)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "name": "keyword.operator.1s",
+      "match": "[+\\-*/%=<>!&|]|<>|<=|>="
+    }
+  }
+}

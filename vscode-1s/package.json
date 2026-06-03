@@ -1,0 +1,92 @@
+{
+  "name": "1s-erp-language",
+  "displayName": "1S: ERP Language Support",
+  "description": "Syntax highlighting, snippets and run button for 1S: ERP scripting language (.1s files)",
+  "version": "0.3.0",
+  "publisher": "vftens",
+  "icon": "icon.png",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages", "Snippets"],
+  "keywords": ["1s", "1c", "erp", "bsl", "accounting", "ukraine", "russian"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vftens/1s-compiler"
+  },
+  "license": "GPL-3.0",
+
+  "activationEvents": ["onLanguage:oneslang"],
+
+  "contributes": {
+    "languages": [
+      {
+        "id": "oneslang",
+        "aliases": ["1S ERP Script", "1s", "bsl"],
+        "extensions": [".1s", ".bsl"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "oneslang",
+        "scopeName": "source.1s",
+        "path": "./syntaxes/1s.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "oneslang",
+        "path": "./snippets/1s.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "1s-erp.runScript",
+        "title": "▶ Run 1S Script",
+        "category": "1S ERP"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "1s-erp.runScript",
+          "when": "resourceExtname == .1s",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "1s-erp.runScript",
+        "key": "ctrl+f5",
+        "when": "editorLangId == oneslang"
+      }
+    ],
+    "configuration": {
+      "title": "1S: ERP",
+      "properties": {
+        "1s-erp.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Path to Python interpreter with 1s-erp installed"
+        },
+        "1s-erp.projectRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Root directory of 1s-compiler project (auto-detected if empty)"
+        }
+      }
+    }
+  },
+
+  "main": "./out/extension.js",
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch":   "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.3.0"
+  }
+}

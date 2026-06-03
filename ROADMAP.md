@@ -17,25 +17,22 @@
 
 ---
 
-## 🔜 v0.4 — First paying clients (Q3 2026)
+## ✅ v0.4 — Sprint 7 complete (June 2026)
 
-- [ ] **SaaS deployment** — Docker + nginx, one-click deploy on VPS
-- [ ] **`pip install 1s-erp`** — distribute runtime as a PyPI package
-- [ ] **Landing page** — simple HTML page explaining the offer
-- [ ] **Stripe/LiqPay payment** — online billing for SaaS tiers
-- [ ] **Demo video** — 5-min screencast: install → run accounting_uk → web UI
-- [ ] **Migration CLI** — `python -m src.cli migrate myfile.bsl` with compat report
-- [ ] **`#Использовать` / `#Область`** preprocessor directives (needed for real 1C codebases)
+- [x] **SaaS deployment** — Docker + Nginx (`nginx/`), `deploy.sh` one-liner
+- [x] **`pip install 1s-erp`** — `pyproject.toml` with extras: `[desktop,cython]`
+- [x] **Landing page** — `landing/index.html` for www.1s-compiler.ru
+- [ ] **Stripe/LiqPay payment** — online billing for SaaS tiers ← next
+- [ ] **Demo video** — 5-min screencast
+- [ ] **Migration CLI** — `python -m src.cli migrate myfile.bsl`
 
----
+## ✅ v0.5 — Sprint 7 complete (June 2026)
 
-## 🔮 v0.5 — Production-ready (Q4 2026)
-
-- [ ] **SQLite-backed registers** — persist accounting data between runs
-- [ ] **Query engine** — full `ВЫБРАТЬ / ОБЕРІТЬ` SQL dialect over registers
-- [ ] **REST API** — POST /run, GET /balance, POST /post (for external integrations)
-- [ ] **VS Code extension** — syntax highlighting + run button for `.1s` files
-- [ ] **Excel import/export** — read `.xlsx` into ValueTable, export reports
+- [x] **SQLite-backed registers** — `src/runtime/persistence.py`
+- [ ] **Query engine** — full `ВЫБРАТЬ / ОБЕРІТЬ` SQL dialect ← next
+- [x] **REST API** — `/api/v1/ping, /run, /eval, /scripts, /analytics-data`
+- [x] **VS Code extension** — `vscode-1s/` grammar + snippets + Run button
+- [x] **Excel export** — `src/runtime/excel.py` + openpyxl, CSV fallback
 
 ---
 

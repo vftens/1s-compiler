@@ -1,0 +1,93 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP — Export reports to Excel / CSV
+// ══════════════════════════════════════════════════════════════════════
+ExcelFile = "report_january_2025.xlsx";
+CsvFile   = "trial_balance_jan2025.csv";
+
+CoA = ChartOfAccounts("General");
+CoA.AddAccount("10","Fixed assets"); CoA.AddAccount("20","Inventory");
+CoA.AddAccount("31","Bank"); CoA.AddAccount("36","Receivables");
+CoA.AddAccount("40","Capital"); CoA.AddAccount("63","Payables");
+CoA.AddAccount("70","Revenue"); CoA.AddAccount("90","COGS");
+CoA.AddAccount("92","Admin");
+
+Reg = AccountingRegister("Journal", CoA);
+BefDate = '20241231'; PS = '20250101'; PE = '20250131'; Dt = '20250115';
+
+Reg.Провести(BefDate,"Opn","Opening: Fixed assets", "10","40",150000);
+Reg.Провести(BefDate,"Opn","Opening: Inventory",    "20","63", 25000);
+Reg.Провести(Dt,"SI001","Revenue",                  "36","70",120000);
+Reg.Провести(Dt,"SI001","Cost of sales",            "90","20", 35000);
+Reg.Провести(Dt,"PR001","Payroll + insurance",      "92","63", 30500);
+Reg.Провести(Dt,"PY001","Paid supplier",            "63","31", 50000);
+Reg.Провести(Dt,"RC001","Received from customer",   "31","36",120000);
+
+// Build Trial Balance table
+TB = ТаблицяЗначень();
+TB.Колонки.Додати("Account"); TB.Колонки.Додати("Name");
+TB.Колонки.Додати("OpenDr"); TB.Колонки.Додати("OpenCr");
+TB.Колонки.Додати("TurnDr"); TB.Колонки.Додати("TurnCr");
+TB.Колонки.Додати("CloseDr"); TB.Колонки.Додати("CloseCr");
+For Each Acc In CoA Do
+    Op = Reg.Balance(Acc, BefDate);
+    Tr = Reg.Turnover(Acc, PS, PE);
+    OD = Op["Dt"]; OC = Op["Ct"]; TD = Tr["DtTurnover"]; TC = Tr["CtTurnover"];
+    If OD + OC + TD + TC = 0 Then  Continue;  EndIf;
+    Net = OD - OC + TD - TC;
+    If Net >= 0 Then  CD = Net; CC = 0;
+    Else              CD = 0;   CC = -Net;  EndIf;
+    Row = TB.Додати();
+    Row["Account"] = Acc.Code; Row["Name"] = Acc.Name;
+    Row["OpenDr"] = OD; Row["OpenCr"] = OC;
+    Row["TurnDr"] = TD; Row["TurnCr"] = TC;
+    Row["CloseDr"] = CD; Row["CloseCr"] = CC;
+EndDo;
+
+// P&L Table
+T70 = Reg.Turnover(CoA.FindByCode("70"), PS, PE);
+T90 = Reg.Turnover(CoA.FindByCode("90"), PS, PE);
+T92 = Reg.Turnover(CoA.FindByCode("92"), PS, PE);
+Rev = T70["CtTurnover"]; COGS = T90["DtTurnover"];
+GrP = Rev - COGS; Admin = T92["DtTurnover"]; OpP = GrP - Admin;
+
+PL = ТаблицяЗначень();
+PL.Колонки.Додати("Line item"); PL.Колонки.Додати("Amount"); PL.Колонки.Додати("Note");
+R = PL.Додати(); R["Line item"] = "Revenue";             R["Amount"] = Rev;    R["Note"] = "Acc.70";
+R = PL.Додати(); R["Line item"] = "Cost of goods sold";  R["Amount"] = -COGS;  R["Note"] = "Acc.90";
+R = PL.Додати(); R["Line item"] = "GROSS PROFIT";        R["Amount"] = GrP;    R["Note"] = "";
+R = PL.Додати(); R["Line item"] = "Administrative exp."; R["Amount"] = -Admin; R["Note"] = "Acc.92";
+R = PL.Додати(); R["Line item"] = "OPERATING PROFIT";    R["Amount"] = OpP;    R["Note"] = String(Round(OpP/Rev*100,1)) + "%";
+
+// Export to Excel
+Book = КнигаExcel();
+S1 = Book.ДодатиАркуш("Trial Balance Jan 2025");
+S1.ВстановитиЗаголовок("TRIAL BALANCE  ·  January 2025  ·  Alpha LLC");
+S1.ВстановитиШапку("Acc., Name, Open Dr, Open Cr, Turn Dr, Turn Cr, Close Dr, Close Cr");
+For Each Row In TB Do
+    Arr = Array();
+    Arr.Add(Row["Account"]); Arr.Add(Row["Name"]);
+    Arr.Add(Row["OpenDr"]); Arr.Add(Row["OpenCr"]);
+    Arr.Add(Row["TurnDr"]); Arr.Add(Row["TurnCr"]);
+    Arr.Add(Row["CloseDr"]); Arr.Add(Row["CloseCr"]);
+    S1.ДодатиРядок(Arr);
+EndDo;
+S1.АвтоШирина();
+
+S2 = Book.ДодатиАркуш("Income Statement");
+S2.ВстановитиЗаголовок("INCOME STATEMENT  ·  January 2025  ·  Alpha LLC");
+S2.ВстановитиШапку("Line item, Amount, Note");
+For Each Row In PL Do
+    Arr = Array(); Arr.Add(Row["Line item"]); Arr.Add(Row["Amount"]); Arr.Add(Row["Note"]);
+    S2.ДодатиРядок(Arr);
+EndDo;
+S2.АвтоШирина();
+Book.Зберегти(ExcelFile);
+ExportCSV(TB, CsvFile);
+
+Message("══════════════════════════════════════════════════════════════════");
+Message("  EXPORT TO EXCEL / CSV — completed");
+Message("══════════════════════════════════════════════════════════════════");
+Message(StrTemplate("  Excel: %1  |  TB rows: %2", ExcelFile, TB.Кількість()));
+Message(StrTemplate("  CSV:   %1", CsvFile));
+Message("  Open the file in Microsoft Excel or LibreOffice Calc");
+Message("══════════════════════════════════════════════════════════════════");

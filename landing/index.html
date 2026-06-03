@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1S: ERP Free Edition — Открытая альтернатива 1С</title>
+<meta name="description" content="Запускайте скрипты 1С без лицензии. Бесплатно, открытый код, Python, Docker. Украинский 🇺🇦 + Русский + English.">
+<meta property="og:title" content="1S: ERP Free Edition">
+<meta property="og:description" content="Открытая 1C-совместимая платформа. Бесплатно навсегда.">
+<meta property="og:image" content="https://www.1s-compiler.ru/og.png">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1565C0; --dark:#0d2137; --accent:#42A5F5;
+  --green:#2e7d32; --gray:#546e7a; --bg:#f0f4f8;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#212121;line-height:1.6}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── Hero ── */
+.hero{background:linear-gradient(135deg,var(--dark) 0%,var(--blue) 100%);
+      color:#fff;padding:80px 20px 60px;text-align:center}
+.hero .logo{font-size:48px;font-weight:800;letter-spacing:-1px;margin-bottom:8px}
+.hero .logo span{color:var(--accent)}
+.hero .tagline{font-size:20px;opacity:.85;margin-bottom:32px}
+.hero .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;
+     border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;
+     text-decoration:none;transition:opacity .15s}
+.btn:hover{opacity:.88;text-decoration:none}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-ghost  {background:rgba(255,255,255,.15);color:#fff;border:2px solid rgba(255,255,255,.4)}
+.badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);
+       border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:4px 12px;
+       font-size:12px;margin-bottom:20px}
+
+/* ── Section ── */
+section{padding:64px 20px;max-width:1100px;margin:0 auto}
+h2{font-size:28px;font-weight:700;color:var(--dark);margin-bottom:32px;text-align:center}
+
+/* ── Features grid ── */
+.features{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
+.card{background:#fff;border-radius:12px;padding:24px;
+      box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:4px solid var(--blue)}
+.card .icon{font-size:32px;margin-bottom:12px}
+.card h3{font-size:16px;font-weight:700;color:var(--dark);margin-bottom:8px}
+.card p{font-size:14px;color:var(--gray)}
+
+/* ── Code block ── */
+.code-section{background:var(--dark);padding:48px 20px}
+.code-section h2{color:#fff}
+.code-wrap{max-width:760px;margin:0 auto;background:#1e1e1e;border-radius:10px;
+           overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.code-bar{background:#2d2d2d;padding:10px 16px;display:flex;gap:6px}
+.code-bar .dot{width:12px;height:12px;border-radius:50%}
+.code-wrap pre{padding:24px;font-family:'Cascadia Code',Consolas,monospace;
+               font-size:13px;line-height:1.7;color:#d4d4d4;overflow-x:auto}
+.kw{color:#569cd6} .fn{color:#4ec9b0} .str{color:#ce9178}
+.cm{color:#6a9955;font-style:italic} .num{color:#b5cea8}
+
+/* ── Pricing ── */
+.pricing{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.price-card{background:#fff;border-radius:12px;padding:24px;
+            box-shadow:0 2px 8px rgba(0,0,0,.08);text-align:center}
+.price-card.highlight{border:3px solid var(--blue);transform:scale(1.03)}
+.price-card .amount{font-size:36px;font-weight:800;color:var(--blue);margin:12px 0}
+.price-card .per{font-size:12px;color:var(--gray)}
+.price-card ul{list-style:none;text-align:left;font-size:13px;margin:16px 0}
+.price-card ul li::before{content:"✓ ";color:var(--green);font-weight:700}
+
+/* ── Stats ── */
+.stats{background:var(--blue);color:#fff;padding:48px 20px;text-align:center}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+            gap:24px;max-width:800px;margin:0 auto}
+.stat h3{font-size:40px;font-weight:800}
+.stat p{opacity:.75;font-size:14px}
+
+/* ── Footer ── */
+footer{background:var(--dark);color:#90a4ae;text-align:center;padding:32px 20px;font-size:13px}
+footer a{color:#90a4ae}
+
+/* ── Responsive ── */
+@media(max-width:600px){
+  .hero .logo{font-size:32px}
+  .hero .tagline{font-size:16px}
+  .btn{padding:10px 20px;font-size:14px}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="badge">🇺🇦 Відкрита платформа · Свободная платформа · Open Platform</div>
+  <div class="logo">1S: <span>ERP</span> Free Edition</div>
+  <p class="tagline">
+    Запускайте скрипты 1С без лицензии — на Python, бесплатно, навсегда.
+  </p>
+  <div class="cta">
+    <a href="https://github.com/vftens/1s-compiler" class="btn btn-primary" target="_blank">
+      ⭐ GitHub — скачать бесплатно
+    </a>
+    <a href="https://github.com/vftens/1s-compiler/releases" class="btn btn-ghost" target="_blank">
+      📦 Скачать .exe (32 МБ)
+    </a>
+  </div>
+  <p style="margin-top:20px;opacity:.6;font-size:13px">
+    GNU GPL v3 · Python 3.10+ · Windows / Linux / macOS · Docker ready
+  </p>
+</div>
+
+<!-- ── Quick start ───────────────────────────────────────────────────────── -->
+<div class="code-section">
+  <h2>Установка за 30 секунд</h2>
+  <div class="code-wrap">
+    <div class="code-bar">
+      <span class="dot" style="background:#ff5f57"></span>
+      <span class="dot" style="background:#ffbd2e"></span>
+      <span class="dot" style="background:#28c840"></span>
+    </div>
+    <pre><span class="cm"># 1. Установка</span>
+<span class="fn">pip</span> install flask
+<span class="fn">git</span> clone https://github.com/vftens/1s-compiler
+
+<span class="cm"># 2. Запуск Web UI</span>
+<span class="fn">python</span> -m src.cli serve
+<span class="cm"># Открыть http://localhost:5000  (логин: admin / admin)</span>
+
+<span class="cm"># 3. Или Docker (одна команда)</span>
+<span class="fn">docker</span> run -p <span class="num">5000</span>:<span class="num">5000</span> vftens/1s-erp
+
+<span class="cm"># Ваш первый скрипт (hello.1s)</span>
+<span class="cm">// Привет от 1S!</span>
+<span class="fn">Повідомити</span>(<span class="str">"Привіт, 1S ERP!"</span>);
+<span class="fn">Повідомити</span>(<span class="fn">ШаблонРядка</span>(<span class="str">"1 + 1 = %1"</span>, <span class="num">1</span> + <span class="num">1</span>));</pre>
+  </div>
+</div>
+
+<!-- ── Features ─────────────────────────────────────────────────────────── -->
+<section>
+  <h2>Всё что нужно для бизнеса</h2>
+  <div class="features">
+    <div class="card"><div class="icon">📒</div>
+      <h3>Двойная запись</h3>
+      <p>ПланСчетов, регистры, ОСВ, анализ счёта, P&L — полный бухгалтерский учёт.</p></div>
+    <div class="card"><div class="icon">📂</div>
+      <h3>Справочники + Документы</h3>
+      <p>Контрагенты, номенклатура, накладные, заказы — как в настоящей 1С.</p></div>
+    <div class="card"><div class="icon">🔄</div>
+      <h3>Workflow согласования</h3>
+      <p>Черновик → На согласовании → Утверждён → Проведён. Журнал аудита.</p></div>
+    <div class="card"><div class="icon">📊</div>
+      <h3>Analytics Dashboard</h3>
+      <p>Chart.js: выручка по месяцам, P&L breakdown, тренд прибыли, статусы документов.</p></div>
+    <div class="card"><div class="icon">📅</div>
+      <h3>4-недельное планирование</h3>
+      <p>Тжнедельные планы с задачами, выполнением и отчётом «ПЛАН vs ФАКТ».</p></div>
+    <div class="card"><div class="icon">📑</div>
+      <h3>Excel / CSV экспорт</h3>
+      <p>ОСВ и P&L в .xlsx с форматированием — открывайте в Excel или LibreOffice.</p></div>
+    <div class="card"><div class="icon">🌍</div>
+      <h3>Три языка</h3>
+      <p>Русский / Українська / English — интерфейс и скрипты на любом языке.</p></div>
+    <div class="card"><div class="icon">⚡</div>
+      <h3>Cython компилятор</h3>
+      <p>Транспилируй скрипты в .pyx для 10–50× ускорения числовых вычислений.</p></div>
+    <div class="card"><div class="icon">🔌</div>
+      <h3>REST API</h3>
+      <p>POST /api/v1/run, /eval, /scripts — интеграция с любыми системами.</p></div>
+  </div>
+</section>
+
+<!-- ── Stats ─────────────────────────────────────────────────────────────── -->
+<div class="stats">
+  <div class="stats-grid">
+    <div class="stat"><h3>462</h3><p>автотестов</p></div>
+    <div class="stat"><h3>20+</h3><p>демо скриптов</p></div>
+    <div class="stat"><h3>3</h3><p>языка интерфейса</p></div>
+    <div class="stat"><h3>32МБ</h3><p>размер .exe</p></div>
+    <div class="stat"><h3>GPL v3</h3><p>лицензия</p></div>
+  </div>
+</div>
+
+<!-- ── Pricing ───────────────────────────────────────────────────────────── -->
+<section>
+  <h2>Тарифы</h2>
+  <div class="pricing">
+    <div class="price-card">
+      <h3>Community</h3>
+      <div class="amount">0 ₽</div>
+      <div class="per">навсегда</div>
+      <ul><li>Все функции</li><li>GPL исходный код</li><li>GitHub Issues</li></ul>
+      <a href="https://github.com/vftens/1s-compiler" class="btn btn-ghost" style="color:var(--blue);border-color:var(--blue);width:100%;justify-content:center">Скачать</a>
+    </div>
+    <div class="price-card highlight">
+      <h3>SaaS Hosted</h3>
+      <div class="amount">29 $</div>
+      <div class="per">в месяц</div>
+      <ul><li>Hosted Web UI</li><li>SSL + бэкапы</li><li>Email поддержка</li></ul>
+      <a href="mailto:aico@ya.ru?subject=SaaS" class="btn btn-primary" style="width:100%;justify-content:center">Подключить</a>
+    </div>
+    <div class="price-card">
+      <h3>Миграция</h3>
+      <div class="amount">199 $</div>
+      <div class="per">одноразово</div>
+      <ul><li>Аудит ваших скриптов</li><li>Отчёт совместимости</li><li>3 рабочих дня</li></ul>
+      <a href="mailto:aico@ya.ru?subject=Migration" class="btn btn-ghost" style="color:var(--blue);border-color:var(--blue);width:100%;justify-content:center">Заказать</a>
+    </div>
+    <div class="price-card">
+      <h3>Enterprise</h3>
+      <div class="amount">499 $</div>
+      <div class="per">установка + год поддержки</div>
+      <ul><li>Self-hosted deploy</li><li>NDA + SLA</li><li>Приоритетная поддержка</li></ul>
+      <a href="mailto:aico@ya.ru?subject=Enterprise" class="btn btn-ghost" style="color:var(--blue);border-color:var(--blue);width:100%;justify-content:center">Обсудить</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────────────────────── -->
+<footer>
+  <p style="margin-bottom:8px">
+    <strong style="color:#fff">1S: ERP Free Edition</strong> — открытая 1C-совместимая ERP платформа
+  </p>
+  <p>
+    <a href="https://github.com/vftens/1s-compiler">GitHub</a> ·
+    <a href="mailto:aico@ya.ru">aico@ya.ru</a> ·
+    <a href="https://t.me/vftens">Telegram</a> ·
+    GNU GPL v3
+  </p>
+  <p style="margin-top:8px">© 2025 vftens · Не аффилирован с 1С</p>
+</footer>
+
+</body>
+</html>
