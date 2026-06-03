@@ -1,3 +1,2 @@
 ﻿@echo off
-call "%~dp0_run.bat" "export_en" "Excel Export (English)"
-
+call "%~dp0_run.bat" "export_en" "Excel Export (EN)"
