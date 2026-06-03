@@ -60,6 +60,11 @@ def _detect_lang(s: str) -> str:
 
 def _os_lang() -> str:
     """Detect OS locale once at startup → 'ru' | 'uk' | 'en'."""
+    # 1. Explicit override via env var (set by language-specific launchers)
+    override = os.environ.get("1S_DEFAULT_LANG", "").strip().lower()
+    if override in ("ru", "uk", "en"):
+        return override
+    # 2. OS locale / LANG environment variable
     import locale as _lc
     try:
         loc = (_lc.getlocale()[0] or
