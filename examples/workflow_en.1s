@@ -1,0 +1,114 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP — Approval Workflow (SAP WF-style BPM)
+// Scenario: manager creates PO → accountant review → CFO approves
+// ══════════════════════════════════════════════════════════════════════
+
+Function ShowStatus(DocNum, St)
+    Message(StrTemplate("  [%1]  Status: %2", DocNum, St));
+EndFunction;
+
+Function LogEvent(Act, Who, Comment)
+    Message(StrTemplate("  >  %1 -> %2:  %3", Act, Who, Comment));
+EndFunction;
+
+// ── Catalogs ─────────────────────────────────────────────────────────
+Vendors = Catalog("Vendors");
+MatPlus = Vendors.Create("V001", "MaterialPlus LLC");
+
+Goods = Catalog("Goods");
+Paper = Goods.Create("G001", "A4 Paper, 500 sheets");
+Paper.Price = 120;
+
+// ── Audit log ─────────────────────────────────────────────────────────
+Log = AuditLog("Procurement");
+
+// ══════════════════════════════════════════════════════════════════════
+Message("══════════════════════════════════════════════════════════════");
+Message("  PURCHASE ORDER APPROVAL WORKFLOW  ·  Alpha LLC");
+Message("══════════════════════════════════════════════════════════════");
+
+// ── Step 1: Manager creates purchase order ─────────────────────────
+Message("");
+Message("── STEP 1: Manager Johnson creates a purchase order ──────────");
+
+PO = WorkflowDocument("PurchaseOrder");
+PO.Date     = '20250120';
+PO.Vendor   = MatPlus;
+PO.Manager  = "Johnson";
+
+Lines = PO.TabSection("Lines", "Product, Qty, Price, Amount");
+Ln = Lines.Add();
+Ln["Product"] = Paper.Name;
+Ln["Qty"]     = 50;
+Ln["Price"]   = Paper.Price;
+Ln["Amount"]  = 50 * Paper.Price;
+
+POTotal = Lines.Total("Amount");
+Log.Record("Johnson", "Create", "PurchaseOrder", PO.Number,
+    "PO for " + String(POTotal));
+
+ShowStatus(PO.Number, PO.StatusLabel("en"));
+Message(StrTemplate("  Vendor: %1  |  Total: %2", PO.Vendor, POTotal));
+
+// ── Step 2: Submit for approval ────────────────────────────────────
+Message("");
+Message("── STEP 2: Submitted to accounting for review ─────────────────");
+
+PO.Submit("Johnson", "Please approve — urgent requirement");
+Log.Record("Johnson", "Submit", "PurchaseOrder", PO.Number, "Submitted for approval");
+LogEvent("Submitted", "Johnson", "Please approve — urgent requirement");
+ShowStatus(PO.Number, PO.StatusLabel("en"));
+
+// ── Step 3: Accountant sends back for revision ─────────────────────
+Message("");
+Message("── STEP 3: Accountant Smith — needs clarification ─────────────");
+
+PO.Revise("Smith (Accountant)", "Please specify cost account and cost center");
+Log.Record("Smith", "Revise", "PurchaseOrder", PO.Number, "Returned: missing cost data");
+LogEvent("Needs Revision", "Smith", "Please specify cost account and cost center");
+ShowStatus(PO.Number, PO.StatusLabel("en"));
+
+// ── Step 4: Manager adds details and resubmits ─────────────────────
+Message("");
+Message("── STEP 4: Johnson adds details and resubmits ─────────────────");
+
+PO.CostAccount  = "Acc. 26 Administrative expenses";
+PO.CostCenter   = "CC-001 Head Office";
+PO.Resubmit("Johnson", "Added cost account and cost center");
+Log.Record("Johnson", "Resubmit", "PurchaseOrder", PO.Number, "Fixed and resubmitted");
+LogEvent("Resubmitted", "Johnson", "Added cost account and cost center");
+ShowStatus(PO.Number, PO.StatusLabel("en"));
+
+// ── Step 5: CFO approves ───────────────────────────────────────────
+Message("");
+Message("── STEP 5: CFO Williams approves the purchase order ───────────");
+
+PO.Approve("Williams (CFO)", "Approved. Amount within Q1 budget.");
+Log.Record("Williams", "Approve", "PurchaseOrder", PO.Number, "Approved by CFO");
+LogEvent("Approved", "Williams", "Approved. Amount within Q1 budget.");
+ShowStatus(PO.Number, PO.StatusLabel("en"));
+
+// ── Step 6: Auto-post after approval ──────────────────────────────
+Message("");
+Message("── STEP 6: Auto-posted after approval ─────────────────────────");
+
+PO.Post();
+Log.Record("System", "Post", "PurchaseOrder", PO.Number, "Auto-posted after approval");
+ShowStatus(PO.Number, PO.StatusLabel("en"));
+Message(StrTemplate("  Document posted: %1", PO.IsPosted ? "YES" : "NO"));
+
+// ── Workflow history ───────────────────────────────────────────────
+Message("");
+Message("── WORKFLOW HISTORY ──────────────────────────────────────────");
+PO.PrintHistory("en");
+
+// ── Audit trail ───────────────────────────────────────────────────
+Message("");
+Message("── AUDIT TRAIL ───────────────────────────────────────────────");
+Message(StrTemplate("  Total audit entries: %1", Log.Count()));
+Log.Print(10);
+
+Message("");
+Message("══════════════════════════════════════════════════════════════");
+Message("  1S: ERP — Approval Workflow (English) — completed");
+Message("══════════════════════════════════════════════════════════════");

@@ -318,6 +318,35 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "uk": "Загальний оборот: {n}  (Σ Дт = Σ Кт ✓)",
         "en": "Grand total: {n}  (Σ Dr = Σ Cr ✓)",
     },
+
+    # ── Analytics Dashboard ───────────────────────────────────────────────────
+    "analytics_title":         {"ru": "Аналитика",            "uk": "Аналітика",          "en": "Analytics"},
+    "analytics_refresh":       {"ru": "Обновить",             "uk": "Оновити",             "en": "Refresh"},
+    "analytics_loading":       {"ru": "Загрузка данных…",     "uk": "Завантаження даних…", "en": "Loading data…"},
+    "analytics_period":        {"ru": "Январь 2025",          "uk": "Січень 2025",         "en": "January 2025"},
+    "analytics_revenue":       {"ru": "Выручка",              "uk": "Виручка",             "en": "Revenue"},
+    "analytics_cogs":          {"ru": "Себестоимость",        "uk": "Собівартість",        "en": "COGS"},
+    "analytics_gross":         {"ru": "Валовая прибыль",      "uk": "Валовий прибуток",    "en": "Gross Profit"},
+    "analytics_admin":         {"ru": "Адм. расходы",         "uk": "Адмін. витрати",      "en": "Admin Exp."},
+    "analytics_op_profit":     {"ru": "Опер. прибыль",        "uk": "Опер. прибуток",      "en": "Oper. Profit"},
+    "analytics_margin":        {"ru": "маржа",                "uk": "маржа",               "en": "margin"},
+    "analytics_scripts":       {"ru": "Скриптов",             "uk": "Скриптів",            "en": "Scripts"},
+    "analytics_revenue_trend": {"ru": "Выручка и себестоимость по месяцам",
+                                 "uk": "Виручка та собівартість по місяцях",
+                                 "en": "Revenue & COGS by Month"},
+    "analytics_pnl_breakdown": {"ru": "Структура P&L",        "uk": "Структура P&L",       "en": "P&L Breakdown"},
+    "analytics_profit":        {"ru": "Динамика валовой прибыли",
+                                 "uk": "Динаміка валового прибутку",
+                                 "en": "Gross Profit Trend"},
+    "analytics_workflow_status": {"ru": "Статусы документов", "uk": "Статуси документів",  "en": "Document Statuses"},
+
+    # ── Workflow ──────────────────────────────────────────────────────────────
+    "nav_analytics":  {"ru": "Аналитика",        "uk": "Аналітика",       "en": "Analytics"},
+    "wf_draft":       {"ru": "Черновик",          "uk": "Чернетка",        "en": "Draft"},
+    "wf_pending":     {"ru": "На согласовании",   "uk": "На погодженні",   "en": "Pending"},
+    "wf_approved":    {"ru": "Согласован",        "uk": "Погоджено",       "en": "Approved"},
+    "wf_posted":      {"ru": "Проведён",          "uk": "Проведено",       "en": "Posted"},
+    "wf_rejected":    {"ru": "Отклонён",          "uk": "Відхилено",       "en": "Rejected"},
 }
 
 

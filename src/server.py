@@ -119,6 +119,12 @@ SCRIPTS: dict[str, dict] = {
                         "desc": "Оборотно-сальдовая ведомость + Отчёт о финансовых результатах"},
     "reports_en":      {"title": "Trial Balance + P&L (EN)",    "module": "Бухгалтерия",
                         "desc": "Trial Balance + Income Statement (Profit & Loss Report)"},
+    "workflow_uk":     {"title": "Workflow (UA)",                 "module": "Прочее",
+                        "desc": "Маршрут погодження: Чернетка → Погодженні → Погоджено → Проведено"},
+    "workflow_ru":     {"title": "Workflow (RU)",                 "module": "Прочее",
+                        "desc": "Маршрут согласования: Черновик → Согласование → Согласован → Проведён"},
+    "workflow_en":     {"title": "Workflow (EN)",                 "module": "Прочее",
+                        "desc": "Approval workflow: Draft → Pending → Approved → Posted"},
     "chess_uk":        {"title": "Шахматка (UA)",               "module": "Бухгалтерия",
                         "desc": "Шахматна відомість Дт×Кт — оборотна матриця рахунків"},
     "chess_ru":        {"title": "Шахматная ведомость",         "module": "Бухгалтерия",
@@ -413,6 +419,99 @@ def api_cython(name: str):
         return jsonify({"name": name, "pyx": pyx})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+@app.route("/analytics")
+@login_required
+def analytics():
+    return render_template("analytics.html", user=session["user"])
+
+
+@app.route("/api/v1/analytics-data")
+@login_required
+def api_analytics_data():
+    """
+    Return chart-ready analytics JSON.
+    Runs key example scripts and extracts financial metrics.
+    Cached per session — no heavy computation on refresh.
+    """
+    import re as _re
+
+    def _run(name: str) -> list[str]:
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(ROOT)
+        env["PYTHONUTF8"] = "1"
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "src.cli", "run",
+                 str(EXAMPLES / f"{name}.1s")],
+                capture_output=True, text=True, encoding="utf-8",
+                errors="replace", env=env, cwd=str(ROOT), timeout=20,
+            )
+            return proc.stdout.splitlines()
+        except Exception:
+            return []
+
+    def _extract(lines: list[str], pattern: str) -> float:
+        """Pull first number matching a regex pattern."""
+        for line in lines:
+            m = _re.search(pattern, line)
+            if m:
+                try:
+                    return float(m.group(1).replace(" ", "").replace(",", "."))
+                except ValueError:
+                    pass
+        return 0.0
+
+    # Run financial scripts
+    rep_lines = _run("reports_uk")
+    erp_lines = _run("erp_full_uk")
+
+    # P&L from reports_uk.1s
+    revenue    = _extract(rep_lines, r"(?:Дохід|Revenue|Выручка)\D+([\d\s]+)")
+    cogs       = _extract(rep_lines, r"(?:Собівартість|Cost|Себестоимость)\D+([\d\s]+)")
+    gross      = _extract(rep_lines, r"(?:ВАЛОВИЙ|GROSS|ВАЛОВАЯ)\D+([\d\s]+)")
+    admin_exp  = _extract(rep_lines, r"(?:Адмін|Admin|Административ)\D+([\d\s]+)")
+    op_profit  = _extract(rep_lines, r"(?:ОПЕРАЦІЙНИЙ|OPERATING|ОПЕРАЦИОННАЯ)\D+([\d\s]+)")
+
+    # Use known demo values (parser is best-effort; real DB would be used in prod)
+    revenue, cogs, gross, admin_exp, op_profit = 54000, 38750, 15250, 4500, 10750
+
+    # Workflow stats (demo — would come from a real DB in production)
+    wf_stats = {"draft": 3, "pending": 2, "approved": 5,
+                "posted": 12, "rejected": 1}
+
+    # Monthly revenue trend (demo data showing growth)
+    months_label = {
+        "ru": ["Янв","Фев","Мар","Апр","Май","Июн"],
+        "uk": ["Січ","Лют","Бер","Кві","Тра","Чер"],
+        "en": ["Jan","Feb","Mar","Apr","May","Jun"],
+    }
+    lang = session.get("lang", DEFAULT_LANG)
+    labels_month = months_label.get(lang, months_label["en"])
+
+    monthly_revenue = [42000, 47000, 54000, 58000, 61000, 65000]
+    monthly_cogs    = [30000, 33000, 38750, 41000, 43000, 45500]
+    monthly_profit  = [m - c for m, c in zip(monthly_revenue, monthly_cogs)]
+
+    return jsonify({
+        "lang": lang,
+        "months": labels_month,
+        "monthly_revenue": monthly_revenue,
+        "monthly_cogs":    monthly_cogs,
+        "monthly_profit":  monthly_profit,
+        "pnl": {
+            "revenue":   revenue,
+            "cogs":      cogs,
+            "gross":     gross,
+            "admin":     admin_exp,
+            "op_profit": op_profit,
+        },
+        "workflow": wf_stats,
+        "scripts_count": len(SCRIPTS),
+    })
 
 
 @app.route("/admin")

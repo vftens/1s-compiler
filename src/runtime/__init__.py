@@ -24,6 +24,11 @@ from .catalogs import (
     _CatalogItem, _CatalogSelection,
     Справочник, Довідник, Документ,
 )
+from .workflow import (
+    WorkflowDocument, WF, WFEntry,
+    ДокументЗМаршрутом, ДокументСМаршрутом,
+)
+from .audit import AuditLog, AuditEntry, АудитЖурнал
 
 __all__ = [
     # Types
@@ -91,4 +96,11 @@ __all__ = [
     # Catalogs + Documents
     "Catalog", "Document", "TabularSection",
     "Справочник", "Довідник", "Документ",
+
+    # Workflow
+    "WorkflowDocument", "WF", "WFEntry",
+    "ДокументЗМаршрутом", "ДокументСМаршрутом",
+
+    # Audit Log
+    "AuditLog", "AuditEntry", "АудитЖурнал",
 ]

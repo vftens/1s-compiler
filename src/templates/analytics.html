@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}{{ t.analytics_title }} — 1S: ERP{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.analytics-header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.analytics-header h1{font-size:20px;font-weight:700;color:var(--blue-dark)}
+.refresh-btn{margin-left:auto}
+
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;
+          margin-bottom:24px}
+.kpi-card{background:#fff;border-radius:8px;padding:16px 18px;
+          box-shadow:0 1px 4px rgba(0,0,0,.1);border-top:3px solid var(--blue-mid)}
+.kpi-card .kpi-label{font-size:11px;color:var(--text-muted);font-weight:600;
+                      text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi-card .kpi-value{font-size:22px;font-weight:700;color:var(--blue-dark)}
+.kpi-card .kpi-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
+.kpi-green .kpi-value{color:#2e7d32}
+.kpi-red   .kpi-value{color:#c62828}
+
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.charts-grid.wide{grid-template-columns:2fr 1fr}
+@media(max-width:900px){.charts-grid,.charts-grid.wide{grid-template-columns:1fr}}
+
+.chart-card{background:#fff;border-radius:8px;padding:20px;
+            box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.chart-card h3{font-size:14px;font-weight:600;color:var(--blue-mid);
+               margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.chart-wrap{position:relative;height:240px}
+
+/* Workflow status badges */
+.wf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.wf-item{text-align:center;padding:10px 6px;border-radius:6px;font-size:12px}
+.wf-draft    {background:#f5f5f5; color:#757575}
+.wf-pending  {background:#fff3e0; color:#e65100}
+.wf-approved {background:#e8f5e9; color:#2e7d32}
+.wf-posted   {background:#e3f2fd; color:#1565c0}
+.wf-rejected {background:#ffebee; color:#c62828}
+.wf-count    {font-size:24px;font-weight:700;display:block}
+.wf-label    {font-size:10px;font-weight:600;text-transform:uppercase}
+
+.loading-overlay{text-align:center;padding:60px;color:var(--text-muted)}
+.loading-overlay .spinner{width:36px;height:36px;border:4px solid #e0e6ef;
+  border-top-color:var(--blue-mid);border-radius:50%;
+  animation:spin 1s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-header">
+  <div style="font-size:32px">📊</div>
+  <h1>{{ t.analytics_title }}</h1>
+  <button class="btn btn-ghost btn-sm refresh-btn" onclick="loadData()">
+    ↻ {{ t.analytics_refresh }}
+  </button>
+</div>
+
+<!-- Loading -->
+<div id="loading" class="loading-overlay">
+  <div class="spinner"></div>
+  {{ t.analytics_loading }}
+</div>
+
+<!-- Content (hidden until data loads) -->
+<div id="content" style="display:none">
+
+  <!-- KPI row -->
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <!-- Charts row 1: Revenue trend + P&L pie -->
+  <div class="charts-grid wide">
+    <div class="chart-card">
+      <h3>📈 {{ t.analytics_revenue_trend }}</h3>
+      <div class="chart-wrap"><canvas id="chart-trend"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>🥧 {{ t.analytics_pnl_breakdown }}</h3>
+      <div class="chart-wrap"><canvas id="chart-pnl"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Charts row 2: Profit bar + Workflow status -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>💹 {{ t.analytics_profit }}</h3>
+      <div class="chart-wrap"><canvas id="chart-profit"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>🔄 {{ t.analytics_workflow_status }}</h3>
+      <div id="wf-grid" class="wf-grid"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const LABELS = {
+  revenue:   "{{ t.analytics_revenue }}",
+  cogs:      "{{ t.analytics_cogs }}",
+  gross:     "{{ t.analytics_gross }}",
+  admin:     "{{ t.analytics_admin }}",
+  opProfit:  "{{ t.analytics_op_profit }}",
+  wf: {
+    draft:    "{{ t.wf_draft }}",
+    pending:  "{{ t.wf_pending }}",
+    approved: "{{ t.wf_approved }}",
+    posted:   "{{ t.wf_posted }}",
+    rejected: "{{ t.wf_rejected }}",
+  },
+};
+
+const FMT = n => new Intl.NumberFormat('ru-RU').format(Math.round(n));
+let charts = {};
+
+async function loadData() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('content').style.display  = 'none';
+
+  const res  = await fetch('/api/v1/analytics-data');
+  const data = await res.json();
+
+  renderKPI(data);
+  renderTrend(data);
+  renderPnL(data);
+  renderProfit(data);
+  renderWorkflow(data);
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display  = 'block';
+}
+
+function renderKPI(d) {
+  const p = d.pnl;
+  const margin = p.revenue > 0 ? (p.op_profit / p.revenue * 100).toFixed(1) : 0;
+  const kpis = [
+    {label: LABELS.revenue,  value: FMT(p.revenue),   sub: "{{ t.analytics_period }}", cls: ""},
+    {label: LABELS.gross,    value: FMT(p.gross),      sub: "", cls: "kpi-green"},
+    {label: LABELS.opProfit, value: FMT(p.op_profit),  sub: margin + "% {{ t.analytics_margin }}", cls: p.op_profit >= 0 ? "kpi-green" : "kpi-red"},
+    {label: LABELS.cogs,     value: FMT(p.cogs),       sub: "", cls: ""},
+    {label: LABELS.admin,    value: FMT(p.admin),      sub: "", cls: ""},
+    {label: "{{ t.analytics_scripts }}", value: d.scripts_count, sub: "", cls: ""},
+  ];
+  document.getElementById('kpi-row').innerHTML = kpis.map(k => `
+    <div class="kpi-card ${k.cls}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      ${k.sub ? `<div class="kpi-sub">${k.sub}</div>` : ''}
+    </div>`).join('');
+}
+
+function renderTrend(d) {
+  if (charts.trend) charts.trend.destroy();
+  charts.trend = new Chart(document.getElementById('chart-trend'), {
+    type: 'bar',
+    data: {
+      labels: d.months,
+      datasets: [
+        {label: LABELS.revenue, data: d.monthly_revenue,
+         backgroundColor: 'rgba(21,101,192,.7)', borderRadius: 4},
+        {label: LABELS.cogs,    data: d.monthly_cogs,
+         backgroundColor: 'rgba(198,40,40,.5)', borderRadius: 4},
+      ]
+    },
+    options: {responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top'}},
+      scales:{y:{beginAtZero:true}}}
+  });
+}
+
+function renderPnL(d) {
+  if (charts.pnl) charts.pnl.destroy();
+  const p = d.pnl;
+  charts.pnl = new Chart(document.getElementById('chart-pnl'), {
+    type: 'doughnut',
+    data: {
+      labels: [LABELS.cogs, LABELS.admin, LABELS.opProfit],
+      datasets: [{
+        data: [p.cogs, p.admin, p.op_profit],
+        backgroundColor: ['#e57373','#ffb74d','#66bb6a'],
+        borderWidth: 2,
+      }]
+    },
+    options: {responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'right'}}}
+  });
+}
+
+function renderProfit(d) {
+  if (charts.profit) charts.profit.destroy();
+  charts.profit = new Chart(document.getElementById('chart-profit'), {
+    type: 'line',
+    data: {
+      labels: d.months,
+      datasets: [{
+        label: LABELS.gross,
+        data: d.monthly_profit,
+        borderColor: '#1565c0',
+        backgroundColor: 'rgba(21,101,192,.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+      }]
+    },
+    options: {responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top'}},
+      scales:{y:{beginAtZero:true}}}
+  });
+}
+
+function renderWorkflow(d) {
+  const wf = d.workflow;
+  const items = [
+    {key:'draft',    cls:'wf-draft'},
+    {key:'pending',  cls:'wf-pending'},
+    {key:'approved', cls:'wf-approved'},
+    {key:'posted',   cls:'wf-posted'},
+    {key:'rejected', cls:'wf-rejected'},
+  ];
+  document.getElementById('wf-grid').innerHTML = items.map(it => `
+    <div class="wf-item ${it.cls}">
+      <span class="wf-count">${wf[it.key] || 0}</span>
+      <span class="wf-label">${LABELS.wf[it.key]}</span>
+    </div>`).join('');
+}
+
+// Auto-load on page open
+loadData();
+</script>
+{% endblock %}

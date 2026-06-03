@@ -170,6 +170,10 @@ hr{border:none;border-top:1px solid var(--border);margin:20px 0}
      class="{{ 'active' if request.endpoint == 'editor' }}">
     <span class="icon">✏️</span> {{ t.nav_editor }}
   </a>
+  <a href="{{ url_for('analytics') }}"
+     class="{{ 'active' if request.endpoint == 'analytics' }}">
+    <span class="icon">📊</span> {{ t.nav_analytics }}
+  </a>
 
   <div class="section-title">{{ t.nav_modules }}</div>
   {% set modules_list = [
