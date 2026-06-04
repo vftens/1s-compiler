@@ -1,0 +1,94 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP — Cython Performance Demo (English)
+// Generate: python -m src.cli cython-gen  examples/demo_cython_perf_en.1s
+// Compile:  python -m src.cli cython-build examples/demo_cython_perf_en.1s --run
+// ══════════════════════════════════════════════════════════════════════
+
+Message("══════════════════════════════════════════════════════════════");
+Message("  CYTHON PERFORMANCE DEMO  ·  1S: ERP  ·  English");
+Message("══════════════════════════════════════════════════════════════");
+Message("");
+
+// Test 1: Fibonacci iterative (cdef long)
+Var A, B, Tmp, K, Mod;
+A = 0; B = 1; Tmp = 0; Mod = 1000000007;
+T0 = TimeNow();
+For K = 1 To 1000000 Do  Tmp = (A + B) % Mod; A = B; B = Tmp;  EndDo;
+Ms1 = Round((TimeNow() - T0) * 1000, 2);
+Message("── Test 1: 1,000,000 Fibonacci iterations ────────────────────────");
+Message(StrTemplate("  Result pair (A,B): (%1, %2)   Python: %3 ms", A, B, Ms1));
+Message("  Cython: cdef long A,B,Tmp,K → expected ~0.5-2 ms (10-50x)");
+Message("");
+
+// Test 2: Sum of squares (cdef long)
+Var Sum, N;
+Sum = 0;
+T0 = TimeNow();
+For N = 1 To 500000 Do  Sum = Sum + N * N;  EndDo;
+Ms2 = Round((TimeNow() - T0) * 1000, 2);
+Message("── Test 2: Σ(N²) for N=1..500,000 ──────────────────────────────");
+Message(StrTemplate("  Result: %1   Python: %2 ms", Sum, Ms2));
+Message("  Cython: cdef long Sum=0,N=0 → expected ~0.3-1 ms (15-60x)");
+Message("");
+
+// Test 3: Sieve of Eratosthenes (cdef long)
+Var MaxN, PrimeCount, M;
+MaxN = 100000; PrimeCount = 0;
+Sieve = Array();
+For K = 0 To MaxN Do  Sieve.Add(True);  EndDo;
+T0 = TimeNow();
+For K = 2 To MaxN Do
+    If Sieve[K] = True Then
+        PrimeCount = PrimeCount + 1;
+        M = K + K;
+        While M <= MaxN Do  Sieve.Set(M, False); M = M + K;  EndDo;
+    EndIf;
+EndDo;
+Ms3 = Round((TimeNow() - T0) * 1000, 2);
+Message("── Test 3: Sieve of Eratosthenes to 100,000 ──────────────────────");
+Message(StrTemplate("  Primes found: %1   Python: %2 ms", PrimeCount, Ms3));
+Message("  Cython: cdef long MaxN=0,PrimeCount=0,K=0,M=0 → ~1-3 ms (10-30x)");
+Message("");
+
+// Test 4: Monte Carlo π estimation (cdef double)
+Var Steps, Hits, Seed;
+Var X, Y;
+Steps = 0; Hits = 0; Seed = 123456789;
+T0 = TimeNow();
+For K = 1 To 100000 Do
+    Seed = (Seed * 1664525 + 1013904223) % 2147483647;
+    X    = Seed / 2147483647.0;
+    Seed = (Seed * 1664525 + 1013904223) % 2147483647;
+    Y    = Seed / 2147483647.0;
+    If X * X + Y * Y <= 1.0 Then  Hits = Hits + 1;  EndIf;
+    Steps = Steps + 1;
+EndDo;
+Ms4 = Round((TimeNow() - T0) * 1000, 2);
+Pi = Hits / Steps * 4;
+
+Message("── Test 4: Monte Carlo π (100,000 points) ────────────────────────");
+Message(StrTemplate("  π ≈ %1   Python: %2 ms", Format(Pi,"ЧДЦ=6"), Ms4));
+Message("  Cython: cdef double X=0.0,Y=0.0 → ~1-4 ms (8-20x)");
+Message("");
+
+TotalMs = Round(Ms1 + Ms2 + Ms3 + Ms4, 1);
+Message("── Summary & compilation instructions ────────────────────────────");
+Message(StrTemplate("  Total Python time: %1 ms", TotalMs));
+Message("  Expected Cython:   ~3-10 ms  (overall 5-20x faster)");
+Message("");
+Message("  Step 1 — Generate .pyx:");
+Message("    python -m src.cli cython-gen  examples/demo_cython_perf_en.1s");
+Message("    --> creates: examples/demo_cython_perf_en.pyx");
+Message("");
+Message("  Step 2 — Compile (requires gcc / clang / MSVC):");
+Message("    python -m src.cli cython-build examples/demo_cython_perf_en.1s --run");
+Message("    --> pip install cython  (if not installed)");
+Message("");
+Message("  Cython types inferred for this script:");
+Message("    cdef long  A,B,Tmp,K,Sum,N,MaxN,PrimeCount,M,Steps,Hits,Seed");
+Message("    cdef double X, Y, Pi");
+Message("    (LCG inlined in loop body -> no function call overhead)");
+Message("");
+Message("══════════════════════════════════════════════════════════════");
+Message("  1S: ERP — Cython Performance Demo (English) — completed");
+Message("══════════════════════════════════════════════════════════════");

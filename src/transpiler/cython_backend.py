@@ -26,7 +26,8 @@ Generated layout
 from __future__ import annotations
 from ..parser.ast_nodes import (
     Module, Node, VarDecl, ProcedureDef, FunctionDef,
-    AssignStmt, ForStmt, Identifier, Literal,
+    AssignStmt, ForStmt, ForEachStmt, WhileStmt,
+    IfStmt, TryStmt, Identifier, Literal,
 )
 from .python_backend import PythonTranspiler, CodeWriter, _py_name
 from .type_inferencer import TypeInferencer, _LONG, _DOUBLE, _BINT, _OBJECT
@@ -116,20 +117,67 @@ class CythonTranspiler(PythonTranspiler):
 
     # ── cdef block helper ────────────────────────────────────────────────────
 
+    def _collect_numeric_vars(self, stmts: list[Node], scope) -> dict[str, str]:
+        """
+        Walk ALL statements recursively and collect every variable whose
+        inferred type is numeric (long / double / bint).
+
+        Cython requires ALL `cdef` declarations at the TOP of a function,
+        even if the variable is first used deep inside a nested loop or if.
+        This scanner ensures for-loop counters and nested vars are captured.
+
+        Returns ordered dict: {name: cy_type_keyword}
+        """
+        result: dict[str, str] = {}  # insertion-order preserved (Python 3.7+)
+
+        def _add(name: str) -> None:
+            if name in result:
+                return
+            ty = scope.get(name)
+            if ty in _CY_INIT:
+                result[name] = _CY_TYPE[ty]
+
+        def _walk(stmts_list: list[Node]) -> None:
+            for stmt in stmts_list:
+                if isinstance(stmt, VarDecl):
+                    for n in stmt.names:
+                        _add(n)
+                elif isinstance(stmt, ForStmt):
+                    # for-loop counter → always long
+                    _add(stmt.var)
+                    _walk(stmt.body)
+                elif isinstance(stmt, ForEachStmt):
+                    _walk(stmt.body)
+                elif isinstance(stmt, WhileStmt):
+                    _walk(stmt.body)
+                elif isinstance(stmt, IfStmt):
+                    for branch in stmt.branches:
+                        _walk(branch.body)
+                    if stmt.else_body:
+                        _walk(stmt.else_body)
+                elif isinstance(stmt, TryStmt):
+                    _walk(stmt.body)
+                    _walk(stmt.except_body)
+                # Note: FunctionDef / ProcedureDef have their own scope
+                # handled in _emit_function — don't recurse into them here.
+
+        _walk(stmts)
+        return result
+
     def _emit_cdef_block(self, stmts: list[Node], scope):
         """
-        Emit `cdef TYPE name = init` for every VarDecl whose inferred type
-        is numeric.  Must be called at the TOP of a function/run() body
-        because Cython requires all `cdef` at the function top.
+        Emit `cdef TYPE name = init` for EVERY numeric variable in the
+        function body (including for-loop counters and nested vars).
+        Must be called at the TOP of a function/run() body because
+        Cython requires all `cdef` at the function top.
         """
         w = self._w
-        for stmt in stmts:
-            if not isinstance(stmt, VarDecl):
-                continue
-            for name in stmt.names:
-                ty = scope.get(name)   # returns _OBJECT for _UNSET
-                if ty in _CY_INIT:
-                    w.emit(f"cdef {_CY_TYPE[ty]} {_py_name(name)} = {_CY_INIT[ty]}")
+        for name, cy_type in self._collect_numeric_vars(stmts, scope).items():
+            init = _CY_INIT.get(
+                next((k for k, v in _CY_TYPE.items() if v == cy_type), None), ""
+            )
+            if init:
+                w.emit(f"cdef {cy_type} {_py_name(name)} = {init}")
 
     # ── Override: VarDecl ────────────────────────────────────────────────────
 
