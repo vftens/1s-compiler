@@ -114,6 +114,18 @@ def DayOfWeek(dt) -> int:
 ДеньНедели            = DayOfWeek
 
 
+def DateFromString(s: str, fmt: str = "YYYY-MM-DD") -> datetime.date:
+    """Parse date string with 1C-style format mask (ГГГГ-ММ-ДД → %Y-%m-%d)."""
+    py_fmt = (fmt
+        .replace("ГГГГ", "%Y").replace("ГГ", "%y")
+        .replace("ММ", "%m").replace("ДД", "%d")
+        .replace("YYYY", "%Y").replace("MM", "%m").replace("DD", "%d"))
+    return datetime.datetime.strptime(str(s), py_fmt).date()
+
+ДатаОтСтроки  = DateFromString   # Russian
+ДатаЗРядка    = DateFromString   # Ukrainian
+
+
 # ── String functions ─────────────────────────────────────────────────────────
 
 def StrLen(s: str) -> int:       return len(str(s))
@@ -475,6 +487,9 @@ class _Structure:
         else:
             self._data[name] = value
 
+    def __getitem__(self, key):        return self._data.get(key, Undefined)
+    def __setitem__(self, key, value): self._data[key] = value
+
     def __iter__(self):
         for k, v in self._data.items():
             yield _KeyValue(k, v)
@@ -493,6 +508,7 @@ class _Structure:
     Кількість  = Count
 
 Структура = _Structure
+Structure = _Structure
 
 
 class _ValueTable:

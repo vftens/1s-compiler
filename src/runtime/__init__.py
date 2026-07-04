@@ -40,10 +40,30 @@ from .excel import (
     ExcelWorkbook, ExcelSheet, ExportCSV,
     КнигаExcel, ЕксельЗбереження, ЭкспортCSV,
 )
+from .logistics import (
+    TransportOrder, DeliveryRoute, Carrier, LogisticsAnalytics, TM,
+    ТранспортнаяЗаявка, МаршрутДоставки, Перевозчик, АналитикаЛогистики,
+    ТранспортнаЗаявка, Перевізник, АналітикаЛогістики,
+)
+from .procurement import (
+    PurchaseOrder, ReceivingOrder, Supplier, ProcurementAnalytics,
+    ЗаказПоставщику, ПриходнаяНакладная, Поставщик, АналитикаЗакупок,
+    ЗамовленняПостачальнику, ПрибутковаНакладна, Постачальник, АналітикаЗакупівель,
+)
+from .warehouse import (
+    Warehouse, WarehouseCell, StockMovement, ABCAnalysis, InventoryCheck, MoveType,
+    Склад, ЯчейкаСклада, ДвижениеТовара, АВС_Анализ, Инвентаризация,
+    КомірkаСкладу, РухТовару, АВС_Аналіз, Інвентаризація,
+)
+from .maintenance import (
+    EquipmentCard, RepairOrder, MaintenancePlan, MaintenanceAnalytics, EqStatus,
+    КарточкаОборудования, НарядНаРемонт, ПланТО, АналитикаТО,
+    КарткаОбладнання, АналітикаТО, СтатусОбладнання,
+)
 
 __all__ = [
     # Types
-    "Undefined", "_1SException", "Array",
+    "Undefined", "_1SException", "Array", "Structure",
     "_parse_date",
     # Collections — English
     "_Array", "_Map", "_Structure", "_ValueTable", "_ValueList",
@@ -58,7 +78,7 @@ __all__ = [
     "AddMonth", "AddDays", "DayOfWeek",
     "ТекущаяДата", "ТекущаяДатаИВремя",
     "НачалоДня", "КонецДня", "НачалоМесяца", "КонецМесяца", "НачалоГода",
-    "ДобавитьДни", "ДеньНедели",
+    "ДобавитьДни", "ДеньНедели", "DateFromString", "ДатаОтСтроки", "ДатаЗРядка",
     # Date — Ukrainian
     "ПоточнаДата", "ПоточнаДатаЧас",
     "ПочатокДня", "КінецьДня", "ПочатокМісяця", "КінецьМісяця", "ПочатокРоку",

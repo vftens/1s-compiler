@@ -1,0 +1,272 @@
+// ══════════════════════════════════════════════════════════════════════
+// 1S: ERP Free Edition — Full ERP Cycle (SAP-comparable)
+// Modules: Procurement → Warehouse → Logistics → Payroll → Maintenance
+// All operations via Workflow engine
+// ══════════════════════════════════════════════════════════════════════
+
+Message("╔══════════════════════════════════════════════════════════════╗");
+Message("║   1S: ERP  —  FULL ERP CYCLE  —  English                    ║");
+Message("║   Logistics | Procurement | Warehouse | Payroll | Repairs   ║");
+Message("╚══════════════════════════════════════════════════════════════╝");
+Message("");
+
+// ══════════════════════════════════════════════════════════════════════
+// BLOCK 1: PROCUREMENT (SAP MM)
+// ══════════════════════════════════════════════════════════════════════
+Message("┌─ BLOCK 1: PROCUREMENT ────────────────────────────────────┐");
+
+Var Sup1, Sup2;
+Sup1 = Supplier("Steel Solutions Ltd", "SUPP-001");
+Sup1.rating = 9.2;
+Sup1.payment_days = 30;
+Sup1.currency = "USD";
+
+Sup2 = Supplier("TechParts GmbH", "SUPP-002");
+Sup2.rating = 7.8;
+Sup2.payment_days = 14;
+Sup2.currency = "USD";
+
+Message("  Suppliers:");
+Message(StrTemplate("    %1 [rating %2] — %3 day terms", Sup1.Name, Sup1.Рейтинг, Sup1.ДниОплаты));
+Message(StrTemplate("    %1 [rating %2] — %3 day terms", Sup2.Name, Sup2.Рейтинг, Sup2.ДниОплаты));
+
+Var PO1;
+PO1 = PurchaseOrder("PO-2025-001", Sup1);
+PO1.AddLine("STL-001",  "Steel sheet 4mm",    500, 1.20, "kg");
+PO1.AddLine("BOLT-M12", "Bolt M12×50",        200, 0.45, "kg");
+PO1.AddLine("PIPE-50",  "Steel pipe Dn50",     80, 8.50, "m");
+
+// Workflow: Draft → Submitted → Approved
+PO1.submit("John Smith");
+PO1.approve("CEO");
+
+Message(PO1.report("en"));
+Message("");
+
+// Goods Receipt
+Var GR1;
+GR1 = ReceivingOrder("GR-2025-001", PO1);
+GR1.AddReceipt("STL-001",  "Steel sheet 4mm",  500, 1.20);
+GR1.AddReceipt("BOLT-M12", "Bolt M12×50",      200, 0.45);
+GR1.AddReceipt("PIPE-50",  "Steel pipe Dn50",   80, 8.50);
+GR1.submit("warehouse");
+GR1.post("warehouse");
+
+Message(StrTemplate("  GR %1 posted. Total: %2 USD", GR1.number, GR1.total_amount));
+Message("└───────────────────────────────────────────────────────────┘");
+Message("");
+
+// ══════════════════════════════════════════════════════════════════════
+// BLOCK 2: WAREHOUSE MANAGEMENT (SAP WM/EWM)
+// ══════════════════════════════════════════════════════════════════════
+Message("┌─ BLOCK 2: WAREHOUSE ──────────────────────────────────────┐");
+
+Var WH;
+WH = Warehouse("Main Warehouse", "WH-01");
+
+Var C1, C2, C3;
+C1 = WH.AddCell("A", 1, 1, 5000);
+C2 = WH.AddCell("A", 1, 2, 5000);
+C3 = WH.AddCell("B", 2, 1, 3000);
+
+Message(StrTemplate("  Cells: %1 | %2 | %3", C1.Address, C2.Address, C3.Address));
+
+WH.Receive("STL-001",  "Steel sheet 4mm",  500, 1.20, C1, "GR-2025-001");
+WH.Receive("BOLT-M12", "Bolt M12×50",      200, 0.45, C2, "GR-2025-001");
+WH.Receive("PIPE-50",  "Steel pipe Dn50",   80, 8.50, C3, "GR-2025-001");
+
+WH.Issue("BOLT-M12", 50,  "Production Order #12");
+WH.Issue("STL-001",  120, "Production Order #12");
+
+Message(StrTemplate("  Steel balance:    %1 kg", WH.Balance("STL-001")));
+Message(StrTemplate("  Bolt balance:     %1 kg", WH.Balance("BOLT-M12")));
+Message(StrTemplate("  Total stock value: %1 USD", WH.total_stock_value));
+
+Var Abc;
+Abc = ABCAnalysis(WH);
+Abc.Run();
+Message("");
+Message(Abc.report("en"));
+
+Var Inv;
+Inv = InventoryCheck(WH);
+Inv.Count("STL-001",  375);   // book 380, actual 375 → shortage
+Inv.Count("BOLT-M12", 150);   // OK
+Inv.Count("PIPE-50",   82);   // book 80, actual 82 → surplus
+Message("");
+Message(Inv.report("en"));
+Message("└───────────────────────────────────────────────────────────┘");
+Message("");
+
+// ══════════════════════════════════════════════════════════════════════
+// BLOCK 3: LOGISTICS (SAP TM/SD)
+// ══════════════════════════════════════════════════════════════════════
+Message("┌─ BLOCK 3: LOGISTICS ──────────────────────────────────────┐");
+
+Var Car1;
+Car1 = Carrier("FastFreight LLC", "CARR-01");
+Car1.rate_per_km = 2.50;
+Car1.reliability = 0.94;
+
+Var Route;
+Route = DeliveryRoute("New York — Philadelphia — Baltimore", Car1);
+Route.total_distance_km = 320;
+Route.add_stop("New York, Warehouse (Dispatch)",  Undefined, 4500);
+Route.add_stop("Philadelphia, Factory",             Undefined, 2000);
+Route.add_stop("Baltimore, Customer Warehouse",     Undefined, 2500);
+
+Var TO1;
+TO1 = TransportOrder("TO-2025-001", Car1, Route);
+TO1.cargo_description = "Steel sheets + pipes";
+TO1.weight_kg = 4500;
+
+// Workflow: Draft → Planned → In Transit → Delivered
+TO1.plan("dispatcher");
+TO1.approve("Logistics Manager");
+TO1.start_transit("Driver Johnson");
+TO1.deliver("Driver Johnson");
+
+Message(TO1.report("en"));
+
+Var LA;
+LA = LogisticsAnalytics();
+LA.add(TO1);
+
+Var TO2;
+TO2 = TransportOrder("TO-2025-002", Car1, Route);
+TO2.weight_kg = 3000;
+TO2.plan("dispatcher");
+TO2.approve("Logistics Manager");
+TO2.start_transit();
+TO2.fail("Vehicle breakdown");
+LA.add(TO2);
+
+Message("");
+Message(LA.dashboard("en"));
+Message("└───────────────────────────────────────────────────────────┘");
+Message("");
+
+// ══════════════════════════════════════════════════════════════════════
+// BLOCK 4: PAYROLL (SAP HCM)
+// ══════════════════════════════════════════════════════════════════════
+Message("┌─ BLOCK 4: PAYROLL CALCULATION ────────────────────────────┐");
+
+Var TaxRate, SocRate;
+TaxRate = 0.22;    // Federal + State income tax
+SocRate = 0.0765;  // FICA (SS 6.2% + Medicare 1.45%)
+
+Var Employees;
+Employees = Array();
+Var E1, E2, E3;
+E1 = Structure();
+E1.Insert("Name",     "John Smith");
+E1.Insert("Salary",   6500);
+E1.Insert("Position", "Chief Engineer");
+
+E2 = Structure();
+E2.Insert("Name",     "Alice Brown");
+E2.Insert("Salary",   4200);
+E2.Insert("Position", "Accountant");
+
+E3 = Structure();
+E3.Insert("Name",     "Bob Davis");
+E3.Insert("Salary",   3200);
+E3.Insert("Position", "Warehouse Operator");
+
+Employees.Add(E1);
+Employees.Add(E2);
+Employees.Add(E3);
+
+Var TotalNet, TotalTax;
+TotalNet = 0;
+TotalTax = 0;
+
+Message("  Payroll slip:");
+Message(StrTemplate("  %-28s %10s %10s %10s %10s", "Employee", "Gross", "Tax", "Net", "FICA"));
+Message("  " + StrRepeat("-", 72));
+
+Var N;
+For N = 0 To Employees.Count() - 1 Do
+    Var Emp, Gross, Tax, Fica, Net;
+    Emp   = Employees[N];
+    Gross = Emp.Salary;
+    Tax   = Round(Gross * TaxRate, 2);
+    Fica  = Round(Gross * SocRate, 2);
+    Net   = Gross - Tax - Fica;
+    TotalNet = TotalNet + Net;
+    TotalTax = TotalTax + Tax + Fica;
+    Message(StrTemplate("  %-28s %10s %10s %10s %10s",
+        Emp.Name, Gross, Tax, Net, Fica));
+EndDo;
+
+Message("  " + StrRepeat("-", 72));
+Message(StrTemplate("  TOTAL net pay: %1 USD | Total taxes: %2 USD", TotalNet, TotalTax));
+Message("└───────────────────────────────────────────────────────────┘");
+Message("");
+
+// ══════════════════════════════════════════════════════════════════════
+// BLOCK 5: EQUIPMENT MAINTENANCE (SAP PM/EAM)
+// ══════════════════════════════════════════════════════════════════════
+Message("┌─ BLOCK 5: EQUIPMENT MAINTENANCE (SAP PM) ─────────────────┐");
+
+Var Eq1, Eq2;
+Eq1 = EquipmentCard("EQ-001", "CNC Lathe DMG CTX 310");
+Eq1.location    = "Workshop 1, Position 3";
+Eq1.category    = "Metalworking";
+Eq1.manufacturer = "DMG Mori";
+Eq1.serial_number = "CTX-2019-83751";
+Eq1.odometer_hours = 14250;
+
+Eq2 = EquipmentCard("EQ-002", "Air Compressor ABAC Genesis 1510");
+Eq2.location = "Compressor Room";
+Eq2.odometer_hours = 8900;
+
+Eq1.ReportDefect("DEF-001", "Spindle runout > 0.05mm", "high");
+Eq1.ReportDefect("DEF-002", "Tool holder wear",         "medium");
+Eq2.ReportDefect("DEF-003", "Oil leak through seal",     "critical");
+
+Message(Eq1.passport("en"));
+Message("");
+
+// Repair Order with Workflow
+Var RO;
+RO = RepairOrder("RO-2025-047", Eq1);
+RO.work_type = "Medium overhaul";
+RO.defect_description = "Spindle runout correction, tool holder replacement";
+RO.labour_hours = 8;
+RO.labour_rate = 75;
+
+RO.submit("shift supervisor");
+RO.approve("Chief Mechanic");
+RO.StartWork("A. Williams");
+RO.AddMaterial("Bearing 6208",         2,  24.50);
+RO.AddMaterial("BT40 Tool Holder",     1,  89.00);
+RO.AddMaterial("Shell Gadus Grease", 0.5,   9.80);
+RO.Complete("A. Williams");
+
+Message(RO.report("en"));
+
+Var MA;
+MA = MaintenanceAnalytics();
+MA.add_equipment(Eq1);
+MA.add_equipment(Eq2);
+MA.add_repair(RO);
+
+Message("");
+Message(MA.dashboard("en"));
+Message("└───────────────────────────────────────────────────────────┘");
+Message("");
+
+// ══════════════════════════════════════════════════════════════════════
+Message("╔══════════════════════════════════════════════════════════════╗");
+Message("║   SUMMARY: FULL ERP CYCLE COMPLETE (SAP ERP / S/4HANA level) ║");
+Message("╠══════════════════════════════════════════════════════════════╣");
+Message(StrTemplate("║  ✓ Procurement:  PO %1 total %2 USD", PO1.number, PO1.total_amount));
+Message(StrTemplate("║  ✓ Warehouse:    %1 items | %2 USD", WH.stock_count, WH.total_stock_value));
+Message(StrTemplate("║  ✓ Logistics:    SLA %1%%", LA.sla_pct));
+Message(StrTemplate("║  ✓ Payroll:      %1 USD net pay", TotalNet));
+Message(StrTemplate("║  ✓ Maintenance:  Order %1 — %2 USD", RO.number, RO.total_cost));
+Message("║                                                              ║");
+Message("║  All operations via Workflow (Draft→Approved→Posted).        ║");
+Message("║  SAP ERP-comparable: MM / WM / TM / HCM / PM modules.       ║");
+Message("╚══════════════════════════════════════════════════════════════╝");

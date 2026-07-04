@@ -256,11 +256,14 @@ class Document:
         object.__setattr__(self, "_num",    num_int)
         object.__setattr__(self, "_posted", False)
         object.__setattr__(self, "_tabs",   {})
+        label = doc_type if doc_type else f"{num_int:06d}"
         object.__setattr__(self, "_data",   {
-            "Номер":    f"{num_int:06d}",
-            "Number":   f"{num_int:06d}",
+            "Номер":    label,
+            "Number":   label,
+            "number":   label,
             "Дата":     datetime.date.today(),
             "Date":     datetime.date.today(),
+            "date":     datetime.date.today(),
             "Проведён": False,
             "IsPosted": False,
         })

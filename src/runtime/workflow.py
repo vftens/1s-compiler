@@ -221,13 +221,13 @@ class WorkflowDocument(Document):
         self._transition(WF.CANCELLED, actor, reason)
         return True
 
-    def Post(self) -> bool:
+    def Post(self, actor: str = "system", comment: str = "") -> bool:
         """Post to accounting (Approved → Posted). Draft also allowed for bypass."""
         if self.Status not in (WF.APPROVED, WF.DRAFT):
             return False
         result = super().Post()
         if result:
-            self._transition(WF.POSTED, "system", "Auto-posted after approval")
+            self._transition(WF.POSTED, actor or "system", comment or "Posted")
         return result
 
     # ── Convenience ──────────────────────────────────────────────────
@@ -275,6 +275,19 @@ class WorkflowDocument(Document):
     Скасувати         = Cancel
     МетаСтатус        = StatusLabel
     ВивідЖурналу      = PrintHistory
+
+    # ── Lowercase aliases (used by 1S transpiled scripts) ─────────────
+    submit    = Submit
+    approve   = Approve
+    reject    = Reject
+    revise    = Revise
+    recall    = Recall
+    resubmit  = Resubmit
+    cancel    = Cancel
+    post      = Post
+    status    = property(lambda self: self.Status)
+    is_draft  = property(lambda self: self.IsDraft)
+    is_posted = property(lambda self: self.IsPosted)
 
 
 # Constructor aliases
