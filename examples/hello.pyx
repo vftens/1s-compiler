@@ -18,6 +18,8 @@ cpdef long Square(long N) except *:
 
 
 def run():
+    cdef long А = 0
+    cdef double X = 0.0
     cdef long Age = 0
     Приветствие = Undefined
     Приветствие = "Привет, мир!"

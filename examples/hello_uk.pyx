@@ -23,11 +23,13 @@ cpdef void ВивестиРезультат(Назва, Значення):
 
 
 def run():
+    cdef long Н = 0
     cdef long Вік = 0
     cdef long Суму = 0
     cdef long А = 0
     cdef long Б = 0
     cdef long Лічильник = 0
+    cdef long Т = 0
     Привітання = Undefined
     Привітання = "Привіт, світе!"
     Повідомити(Привітання)
