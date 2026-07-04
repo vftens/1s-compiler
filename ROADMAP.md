@@ -36,6 +36,27 @@
 
 ---
 
+## ✅ v0.6 — Sprint 8 complete (July 2026)
+
+- [x] **Cython type inference engine** — `_collect_numeric_vars()` recursive scanner, `cdef long` / `cpdef` for all numeric vars
+- [x] **Sprint 8 demo scripts** — Cython performance benchmarks RU/UK/EN
+
+---
+
+## ✅ v0.7 — Sprint 9 complete (July 2026)
+
+- [x] **Workflow engine** — `WorkflowDocument` base class, `Draft → Pending → Approved → Posted` state machine, full audit history
+- [x] **Procurement module (SAP MM)** — `PurchaseOrder`, `ReceivingOrder`, `Supplier`, `ProcurementAnalytics`; goods receipt with partial fulfillment tracking
+- [x] **Warehouse module (SAP WM/EWM)** — `Warehouse`, `WarehouseCell`, `StockMovement`, `ABCAnalysis` (Pareto 80/15/5), `InventoryCheck`
+- [x] **Logistics module (SAP TM/SD)** — `TransportOrder`, `DeliveryRoute`, `Carrier`, `LogisticsAnalytics`, SLA tracking
+- [x] **Maintenance module (SAP PM/EAM)** — `EquipmentCard` (digital twin), `RepairOrder`, `MaintenancePlan`, `MaintenanceAnalytics` (MTTR, cost KPIs)
+- [x] **Payroll (SAP HCM)** — built-in arithmetic: RU (НДФЛ 13%, ПФР 22%), UK (ПДФО 18%, ЄСВ 22%), EN (22% tax, FICA 7.65%)
+- [x] **Full demo suite** — `demo_erp_full_ru/uk/en.1s` + BAT launchers
+- [x] **Runtime bugfixes** — `Structure["key"]` access, `DateFromString`, `Structure` EN alias, `Document.number` lowercase key, `WorkflowDocument` lowercase method aliases
+- [x] **Documentation** — `docs/erp-modules.md` full module reference
+
+---
+
 ## 🌍 v1.0 — Open ecosystem (2027)
 
 - [ ] **Module registry** — community-published accounting rules, payroll formulas

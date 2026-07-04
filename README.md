@@ -45,6 +45,8 @@ without buying a 1C license. Your existing `.1s` / `.bsl` scripts work as-is.
 - **Full 1C-compatible AST** — variables, functions, procedures, loops, exceptions
 - **Double-entry accounting** — `ПланРахунків`, `РегістрБухгалтерії`, `ОСВ`, `АналізРахунку`
 - **Accumulation & Information registers** — inventory, payroll, HR
+- **SAP-comparable ERP modules** (Sprint 9) — Procurement (MM), Warehouse (WM/EWM), Logistics (TM/SD), Payroll (HCM), Maintenance (PM/EAM) — all via Workflow engine
+- **Workflow engine** — `Draft → Pending → Approved → Posted` state machine on every document
 - **Cython transpiler** — typed `.pyx` output, `cdef long` / `cpdef` for 10–50× speedup
 - **Web UI** — Flask shell with live SSE script runner, user management, admin panel
 - **384 tests** — lexer, parser, runtime, transpiler, integration
@@ -77,6 +79,9 @@ python -m src.cli serve
 | `erp_sale_uk.1s` | Sales orders, inventory, VAT, financial result |
 | `hrm_payroll.1s` | Payroll, NDFL, insurance, vacation |
 | `hrm_zup.1s` | HR infobase, work schedules, staffing |
+| `demo_erp_full_ru.1s` | Full ERP cycle in Russian: Procurement→Warehouse→Logistics→Payroll→Maintenance |
+| `demo_erp_full_uk.1s` | Full ERP cycle in Ukrainian (ПДФО 18%, ЄСВ 22%) |
+| `demo_erp_full_en.1s` | Full ERP cycle in English (Federal tax 22%, FICA 7.65%) |
 
 ---
 
