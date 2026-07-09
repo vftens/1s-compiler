@@ -561,6 +561,172 @@ def api_analytics_data():
     })
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Sprint 11 — ERP Persistence & Reporting REST API
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_ERP_DB = ROOT / "data" / "erp.db"
+
+
+@app.route("/api/v1/org")
+@login_required
+def api_org():
+    """
+    GET /api/v1/org?name=<org_name>
+    Return org chart nodes as JSON. Loads from erp.db if present.
+    """
+    from .runtime.persistence import load_org_chart
+    org_name = request.args.get("name", "default")
+    try:
+        org = load_org_chart(str(_ERP_DB), org_name)
+        nodes = [
+            {
+                "id": n.id,
+                "name": n.name,
+                "type": n.type.value if hasattr(n.type, "value") else str(n.type),
+                "parent_id": n.parent_id,
+            }
+            for n in org._nodes.values()
+        ]
+        return jsonify({"ok": True, "org_name": org_name, "nodes": nodes, "count": len(nodes)})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/api/v1/budget/utilization")
+@login_required
+def api_budget_utilization():
+    """
+    GET /api/v1/budget/utilization?org_id=<id>&period=<period>
+    Return budget utilization rows from erp.db.
+    """
+    from .runtime.erp_query import ERPQuery
+    org_id = request.args.get("org_id") or None
+    period = request.args.get("period") or None
+    try:
+        q = ERPQuery(str(_ERP_DB))
+        rows = q.budget_utilization(org_id=org_id, period=period)
+        return jsonify({
+            "ok": True,
+            "org_id": org_id,
+            "period": period,
+            "rows": [
+                {**r, "allocated": float(r["allocated"]),
+                 "committed": float(r["committed"]),
+                 "consumed": float(r["consumed"])}
+                for r in rows
+            ],
+        })
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/api/v1/payroll/calculate", methods=["POST"])
+@login_required
+def api_payroll_calculate():
+    """
+    POST /api/v1/payroll/calculate
+    Body JSON: {period, employees: [{id, name, role, salary, tax_profile}],
+                absences: [{emp_id, type, days, period}],
+                bonuses:  [{emp_id, name, type, value}],
+                save: bool}
+    Run payroll and optionally persist to erp.db.
+    """
+    from .runtime.payroll import PayrollEngine, Employee, Absence, BonusScheme
+    from .runtime.tax_engine import TaxEngine
+    from .runtime.persistence import save_payroll_results
+
+    data = request.get_json(silent=True) or {}
+    period = data.get("period", "")
+    if not period:
+        return jsonify({"ok": False, "error": "period is required"}), 400
+
+    tax = TaxEngine()
+    pr = PayrollEngine(tax)
+
+    for emp_data in data.get("employees", []):
+        emp = Employee(
+            id=emp_data["id"],
+            name=emp_data["name"],
+            role=emp_data.get("role", ""),
+            base_salary=emp_data["salary"],
+            tax_profile=emp_data.get("tax_profile", "ru_2024"),
+        )
+        pr.add_employee(emp)
+
+    for ab in data.get("absences", []):
+        pr.add_absence(ab["emp_id"], ab["type"], ab["days"], ab.get("period", period))
+
+    for bon in data.get("bonuses", []):
+        pr.add_bonus(ab["emp_id"], BonusScheme(
+            bon["name"], bon.get("type", "percent"), bon["value"]
+        ))
+
+    results = pr.calculate(period)
+
+    out = [
+        {
+            "emp_id": r.employee.id,
+            "emp_name": r.employee.name,
+            "gross": float(r.gross),
+            "net": float(r.net),
+            "tax_profile": r.employee.tax_profile,
+            "period": r.period,
+        }
+        for r in results
+    ]
+
+    if data.get("save"):
+        _ERP_DB.parent.mkdir(parents=True, exist_ok=True)
+        save_payroll_results(results, str(_ERP_DB))
+
+    return jsonify({"ok": True, "period": period, "results": out, "count": len(out)})
+
+
+@app.route("/api/v1/payroll/history")
+@login_required
+def api_payroll_history():
+    """
+    GET /api/v1/payroll/history?emp_id=<id>&period=<period>
+    Return payroll history from erp.db.
+    """
+    from .runtime.erp_query import ERPQuery
+    emp_id = request.args.get("emp_id") or None
+    period = request.args.get("period") or None
+    try:
+        q = ERPQuery(str(_ERP_DB))
+        rows = q.payroll_history(emp_id=emp_id, period=period)
+        return jsonify({
+            "ok": True,
+            "rows": [
+                {**r, "gross": float(r["gross"]), "net": float(r["net"])}
+                for r in rows
+            ],
+        })
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/api/v1/erp/summary")
+@login_required
+def api_erp_summary():
+    """
+    GET /api/v1/erp/summary?period=<period>
+    Cross-module summary: budget totals + payroll totals.
+    """
+    from .runtime.erp_query import ERPQuery
+    period = request.args.get("period") or None
+    try:
+        q = ERPQuery(str(_ERP_DB))
+        summary = q.summary_report(period=period)
+        return jsonify({
+            "ok": True,
+            **{k: float(v) if hasattr(v, "__float__") else v for k, v in summary.items()},
+        })
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
 @app.route("/admin")
 @admin_required
 def admin():

@@ -35,6 +35,23 @@ from .persistence import (
     save_accumulation, load_accumulation,
     СохранитьРегистр, ЗагрузитьРегистр,
     ЗберегтиРегістр, ЗавантажитиРегістр,
+    # Sprint 11 — ERP module persistence
+    save_org_chart, load_org_chart,
+    save_budget, load_budget,
+    save_payroll_results, load_payroll_results,
+    save_workflow_config, load_workflow_config,
+    СохранитьОргСтруктуру, ЗагрузитьОргСтруктуру,
+    ЗберегтиОргСтруктуру, ЗавантажитиОргСтруктуру,
+    СохранитьБюджет, ЗагрузитьБюджет,
+    ЗберегтиБюджет, ЗавантажитиБюджет,
+    СохранитьРасчетыЗП, ЗагрузитьРасчетыЗП,
+    ЗберегтиРозрахункиЗП, ЗавантажитиРозрахункиЗП,
+    СохранитьМаршрут, ЗагрузитьМаршрут,
+    ЗберегтиМаршрут, ЗавантажитиМаршрут,
+)
+from .erp_query import (
+    ERPQuery,
+    ЗапросERPe, ЗапитERPe, ERPЗапрос,
 )
 from .excel import (
     ExcelWorkbook, ExcelSheet, ExportCSV,

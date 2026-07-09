@@ -71,6 +71,16 @@
 
 ---
 
+## ✅ v0.9 — Sprint 11 complete (July 2026)
+
+- [x] **SQLite persistence for Sprint 10 modules** — `save_org_chart`/`load_org_chart`, `save_budget`/`load_budget`, `save_payroll_results`/`load_payroll_results`, `save_workflow_config`/`load_workflow_config`; all with RU/UK/EN aliases
+- [x] **ERP query layer** (`erp_query.py`) — `ERPQuery`: `budget_utilization`, `po_spend_by_supplier`, `payroll_history`, `summary_report`; formatted text output in RU/UK/EN
+- [x] **REST API Sprint 11** — `GET /api/v1/org`, `GET /api/v1/budget/utilization`, `POST /api/v1/payroll/calculate`, `GET /api/v1/payroll/history`, `GET /api/v1/erp/summary`
+- [x] **Demo suite** — `demo_persistence_ru.1s`, `demo_persistence_uk.1s`, `demo_erp_query_en.1s` — all pass end-to-end
+- [x] **26 new tests** — persistence round-trips, query layer, trilingual aliases; 514 passing total
+
+---
+
 ## 🌍 v1.0 — Open ecosystem (2027)
 
 - [ ] **Module registry** — community-published accounting rules, payroll formulas

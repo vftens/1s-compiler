@@ -256,9 +256,337 @@ def load_register(reg, db_path: str) -> int:
     raise TypeError(f"Unknown register type: {type(reg)}")
 
 
-# ── Russian / Ukrainian aliases ───────────────────────────────────────────────
+# ── Russian / Ukrainian aliases (registers) ────────────────────────────────────
 
 СохранитьРегистр  = save_register
 ЗагрузитьРегистр  = load_register
 ЗберегтиРегістр   = save_register
 ЗавантажитиРегістр = load_register
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Sprint 11 — Persistence for Sprint 10 ERP modules
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import json as _json
+
+
+# ── OrgChart ──────────────────────────────────────────────────────────────────
+
+def save_org_chart(org, db_path: str) -> int:
+    """Save OrgChart nodes to SQLite. Returns node count saved (excluding root)."""
+    org_name = org._root.name
+    path = Path(db_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with sqlite3.connect(str(path)) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS org_nodes (
+                id        TEXT NOT NULL,
+                name      TEXT NOT NULL,
+                type      TEXT NOT NULL,
+                parent_id TEXT,
+                org_name  TEXT NOT NULL
+            )
+        """)
+        conn.execute("DELETE FROM org_nodes WHERE org_name = ?", (org_name,))
+        rows = []
+        for node in org._nodes.values():
+            if node.id == "root":
+                continue  # root is recreated automatically on load
+            parent_id = node.parent.id if node.parent else "root"
+            rows.append((
+                node.id, node.name,
+                node.org_type.value if hasattr(node.org_type, "value") else str(node.org_type),
+                parent_id, org_name,
+            ))
+        conn.executemany(
+            "INSERT INTO org_nodes (id, name, type, parent_id, org_name) VALUES (?,?,?,?,?)",
+            rows,
+        )
+        conn.commit()
+    return len(rows)
+
+
+def load_org_chart(db_path: str, org_name: str):
+    """Load OrgChart from SQLite. Returns a new OrgChart instance."""
+    from .org import OrgChart
+    path = Path(db_path)
+    if not path.exists():
+        return OrgChart(org_name)
+
+    with sqlite3.connect(str(path)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM org_nodes WHERE org_name = ? ORDER BY rowid",
+            (org_name,),
+        ).fetchall()
+
+    org = OrgChart(org_name)
+    # Two-pass: nodes whose parent already exists first, then children
+    remaining = list(rows)
+    max_passes = len(remaining) + 1
+    passes = 0
+    while remaining and passes < max_passes:
+        passes += 1
+        still_pending = []
+        for row in remaining:
+            parent_id = row["parent_id"] or "root"
+            if parent_id in org._nodes:
+                org.add_node(row["id"], row["name"], row["type"], parent_id)
+            else:
+                still_pending.append(row)
+        remaining = still_pending
+    return org
+
+
+# ── BudgetControl ─────────────────────────────────────────────────────────────
+
+def save_budget(budget, db_path: str) -> int:
+    """Save BudgetControl allocations and entries to SQLite."""
+    path = Path(db_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with sqlite3.connect(str(path)) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS budget_allocations (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                org_id   TEXT NOT NULL,
+                period   TEXT NOT NULL,
+                account  TEXT NOT NULL,
+                amount   TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS budget_entries (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_type   TEXT NOT NULL,
+                org_id       TEXT NOT NULL,
+                period       TEXT NOT NULL,
+                amount       TEXT NOT NULL,
+                doc_ref      TEXT,
+                account      TEXT
+            )
+        """)
+        conn.execute("DELETE FROM budget_allocations")
+        conn.execute("DELETE FROM budget_entries")
+
+        # _allocations is Dict[Tuple[org_id, period, account], Decimal]
+        alloc_rows = [
+            (org_id, period, account, str(amount))
+            for (org_id, period, account), amount in budget._allocations.items()
+        ]
+        conn.executemany(
+            "INSERT INTO budget_allocations (org_id, period, account, amount) VALUES (?,?,?,?)",
+            alloc_rows,
+        )
+        # BudgetEntry has: entry_type, org_id, period, account, amount, doc_ref
+        entry_rows = [
+            (e.entry_type, e.org_id, e.period, str(e.amount), e.doc_ref, e.account)
+            for e in budget._entries
+        ]
+        conn.executemany(
+            "INSERT INTO budget_entries (entry_type, org_id, period, amount, doc_ref, account) VALUES (?,?,?,?,?,?)",
+            entry_rows,
+        )
+        conn.commit()
+    return len(alloc_rows) + len(entry_rows)
+
+
+def load_budget(db_path: str, hard_stop: bool = True, warn_threshold: float = 0.9):
+    """Load BudgetControl from SQLite. Returns a new BudgetControl instance."""
+    from .budget import BudgetControl, BudgetEntry
+    path = Path(db_path)
+    budget = BudgetControl(hard_stop=hard_stop, warn_threshold=warn_threshold)
+    if not path.exists():
+        return budget
+
+    with sqlite3.connect(str(path)) as conn:
+        conn.row_factory = sqlite3.Row
+        allocs = conn.execute("SELECT * FROM budget_allocations ORDER BY id").fetchall()
+        entries = conn.execute("SELECT * FROM budget_entries ORDER BY id").fetchall()
+
+    # _allocations is Dict[Tuple[org_id, period, account], Decimal]
+    for row in allocs:
+        budget._allocations[(row["org_id"], row["period"], row["account"])] = Decimal(row["amount"])
+    for row in entries:
+        budget._entries.append(BudgetEntry(
+            entry_type=row["entry_type"], org_id=row["org_id"],
+            period=row["period"], amount=Decimal(row["amount"]),
+            doc_ref=row["doc_ref"] or "", account=row["account"] or "",
+        ))
+    return budget
+
+
+# ── PayrollEngine results ─────────────────────────────────────────────────────
+
+def save_payroll_results(results: list, db_path: str) -> int:
+    """Save PayrollResult list to SQLite."""
+    path = Path(db_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with sqlite3.connect(str(path)) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS payroll_results (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                period      TEXT NOT NULL,
+                emp_id      TEXT NOT NULL,
+                emp_name    TEXT NOT NULL,
+                gross       TEXT NOT NULL,
+                net         TEXT NOT NULL,
+                tax_profile TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS payroll_lines (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                result_id   INTEGER NOT NULL,
+                description TEXT NOT NULL,
+                amount      TEXT NOT NULL,
+                line_type   TEXT NOT NULL
+            )
+        """)
+        if results:
+            period = results[0].period
+            conn.execute("DELETE FROM payroll_results WHERE period = ?", (period,))
+            conn.execute(
+                "DELETE FROM payroll_lines WHERE result_id IN "
+                "(SELECT id FROM payroll_results WHERE period = ?)", (period,)
+            )
+
+        saved = 0
+        for res in results:
+            cur = conn.execute(
+                "INSERT INTO payroll_results (period, emp_id, emp_name, gross, net, tax_profile) "
+                "VALUES (?,?,?,?,?,?)",
+                (res.period, res.employee.id, res.employee.name,
+                 str(res.gross), str(res.net), res.employee.tax_profile),
+            )
+            rid = cur.lastrowid
+            # Save tax deduction lines from tax_result
+            line_rows = []
+            if res.tax_result and res.tax_result.lines:
+                for ln in res.tax_result.lines:
+                    line_rows.append((rid, ln.name, str(ln.amount), "deduction"))
+            if line_rows:
+                conn.executemany(
+                    "INSERT INTO payroll_lines (result_id, description, amount, line_type) VALUES (?,?,?,?)",
+                    line_rows,
+                )
+            saved += 1
+        conn.commit()
+    return saved
+
+
+def load_payroll_results(db_path: str, period: str | None = None) -> list:
+    """Load PayrollResult records from SQLite. Returns list of dicts (not full objects)."""
+    path = Path(db_path)
+    if not path.exists():
+        return []
+
+    with sqlite3.connect(str(path)) as conn:
+        conn.row_factory = sqlite3.Row
+        if period:
+            rows = conn.execute(
+                "SELECT * FROM payroll_results WHERE period = ? ORDER BY id",
+                (period,),
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM payroll_results ORDER BY id").fetchall()
+
+        records = []
+        for row in rows:
+            lines = conn.execute(
+                "SELECT * FROM payroll_lines WHERE result_id = ? ORDER BY id",
+                (row["id"],),
+            ).fetchall()
+            records.append({
+                "period": row["period"],
+                "emp_id": row["emp_id"],
+                "emp_name": row["emp_name"],
+                "gross": Decimal(row["gross"]),
+                "net": Decimal(row["net"]),
+                "tax_profile": row["tax_profile"],
+                "lines": [
+                    {"description": ln["description"], "amount": Decimal(ln["amount"]),
+                     "line_type": ln["line_type"]}
+                    for ln in lines
+                ],
+            })
+    return records
+
+
+# ── WorkflowConfig ────────────────────────────────────────────────────────────
+
+def save_workflow_config(cfg, db_path: str) -> int:
+    """Save WorkflowConfig rules to SQLite as JSON blobs per doc_type."""
+    path = Path(db_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with sqlite3.connect(str(path)) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS workflow_rules (
+                doc_type TEXT PRIMARY KEY,
+                rules_json TEXT NOT NULL
+            )
+        """)
+        conn.execute("DELETE FROM workflow_rules")
+        rows = []
+        for doc_type, rule_list in cfg._rules.items():
+            serialized = [
+                {"condition": r.condition, "approvers": r.approvers}
+                for r in rule_list
+            ]
+            rows.append((doc_type, _json.dumps(serialized, ensure_ascii=False)))
+        conn.executemany(
+            "INSERT INTO workflow_rules (doc_type, rules_json) VALUES (?,?)", rows
+        )
+        conn.commit()
+    return len(rows)
+
+
+def load_workflow_config(db_path: str):
+    """Load WorkflowConfig from SQLite. Returns a WorkflowConfig instance."""
+    from .workflow_config import WorkflowConfig, WFRule
+    path = Path(db_path)
+    cfg = WorkflowConfig()
+    if not path.exists():
+        return cfg
+
+    with sqlite3.connect(str(path)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM workflow_rules").fetchall()
+
+    for row in rows:
+        rule_list = []
+        for r in _json.loads(row["rules_json"]):
+            rule_list.append(WFRule(condition=r["condition"], approvers=r["approvers"]))
+        cfg._rules[row["doc_type"]] = rule_list
+    return cfg
+
+
+# ── Sprint 11 Russian / Ukrainian aliases ─────────────────────────────────────
+
+# OrgChart
+СохранитьОргСтруктуру   = save_org_chart
+ЗагрузитьОргСтруктуру   = load_org_chart
+ЗберегтиОргСтруктуру    = save_org_chart
+ЗавантажитиОргСтруктуру = load_org_chart
+
+# BudgetControl
+СохранитьБюджет   = save_budget
+ЗагрузитьБюджет   = load_budget
+ЗберегтиБюджет    = save_budget
+ЗавантажитиБюджет = load_budget
+
+# Payroll
+СохранитьРасчетыЗП   = save_payroll_results
+ЗагрузитьРасчетыЗП   = load_payroll_results
+ЗберегтиРозрахункиЗП  = save_payroll_results
+ЗавантажитиРозрахункиЗП = load_payroll_results
+
+# WorkflowConfig
+СохранитьМаршрут   = save_workflow_config
+ЗагрузитьМаршрут   = load_workflow_config
+ЗберегтиМаршрут    = save_workflow_config
+ЗавантажитиМаршрут = load_workflow_config

@@ -48,6 +48,9 @@ without buying a 1C license. Your existing `.1s` / `.bsl` scripts work as-is.
 - **SAP-comparable ERP modules** (Sprint 9) — Procurement (MM), Warehouse (WM/EWM), Logistics (TM/SD), Payroll (HCM), Maintenance (PM/EAM) — all via Workflow engine
 - **Workflow engine** — `Draft → Pending → Approved → Posted` state machine on every document
 - **YAML-configurable ERP layer** (Sprint 10) — OrgUnit hierarchy, N-level WorkflowConfig, TaxEngine (ru/ua/us/eu), ThreeWayMatch, PayrollEngine, BudgetControl, IndustryProfiles — add approval levels or change tax rates in YAML, no code changes
+- **SQLite ERP persistence** (Sprint 11) — OrgChart, BudgetControl, PayrollEngine, WorkflowConfig all save/load to SQLite; survives server restarts; `save_org_chart`, `save_budget`, `save_payroll_results`, `save_workflow_config` + trilingual aliases
+- **ERP query layer** (Sprint 11) — `ERPQuery` for cross-document reporting: `budget_utilization`, `po_spend_by_supplier`, `payroll_history`, `summary_report` — all with RU/UK/EN text output
+- **REST API v1 (Sprint 11)** — `GET /api/v1/org`, `GET /api/v1/budget/utilization`, `POST /api/v1/payroll/calculate`, `GET /api/v1/payroll/history`, `GET /api/v1/erp/summary`
 - **Cython transpiler** — typed `.pyx` output, `cdef long` / `cpdef` for 10–50× speedup
 - **Web UI** — Flask shell with live SSE script runner, user management, admin panel
 - **384 tests** — lexer, parser, runtime, transpiler, integration
@@ -86,6 +89,9 @@ python -m src.cli serve
 | `demo_manufacturing_ru.1s` | Sprint 10: Manufacturing — OrgChart, Budget, 3-Way Match, Payroll (ru_2024) |
 | `demo_trade_uk.1s` | Sprint 10: Retail trade — YAML routing, ПДФО+ЄСВ+ВЗ payroll (ua_2024) |
 | `demo_construction_en.1s` | Sprint 10: Construction — Budget commitment, FICA payroll (us_2024) |
+| `demo_persistence_ru.1s` | Sprint 11: OrgChart+Budget+Payroll → SQLite → reload + ERP queries (Russian) |
+| `demo_persistence_uk.1s` | Sprint 11: Агрохолдинг → SQLite → reload + Ukrainian ERP queries |
+| `demo_erp_query_en.1s` | Sprint 11: ERPQuery layer — budget utilization, PO spend, payroll history, summary |
 
 ---
 
