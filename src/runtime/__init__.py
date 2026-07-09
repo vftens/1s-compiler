@@ -18,7 +18,7 @@ from .registers import (
     ПланРахунків, РегістрБухгалтерії, РегістрНакопичення,
     РегістрВідомостей, ГрафікРоботи,
 )
-from .query import _Query, QueryResult, Запрос, Query
+from .query import _Query, QueryResult, Запрос, Запит, Query
 from .catalogs import (
     Catalog, Document, TabularSection,
     _CatalogItem, _CatalogSelection,
@@ -183,7 +183,7 @@ __all__ = [
     "РегістрВідомостей", "ГрафікРоботи",
 
     # Query
-    "_Query", "QueryResult", "Запрос", "Query",
+    "_Query", "QueryResult", "Запрос", "Запит", "Query",
 
     # Catalogs + Documents
     "Catalog", "Document", "TabularSection",
