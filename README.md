@@ -51,9 +51,12 @@ without buying a 1C license. Your existing `.1s` / `.bsl` scripts work as-is.
 - **SQLite ERP persistence** (Sprint 11) — OrgChart, BudgetControl, PayrollEngine, WorkflowConfig all save/load to SQLite; survives server restarts; `save_org_chart`, `save_budget`, `save_payroll_results`, `save_workflow_config` + trilingual aliases
 - **ERP query layer** (Sprint 11) — `ERPQuery` for cross-document reporting: `budget_utilization`, `po_spend_by_supplier`, `payroll_history`, `summary_report` — all with RU/UK/EN text output
 - **REST API v1 (Sprint 11)** — `GET /api/v1/org`, `GET /api/v1/budget/utilization`, `POST /api/v1/payroll/calculate`, `GET /api/v1/payroll/history`, `GET /api/v1/erp/summary`
+- **Script query engine** (Sprint 12) — `Query("SELECT …").AttachDB("erp.db").Execute()` in `.1s` scripts; joins in-memory `ValueTable` with SQLite ERP tables in a single query; trilingual aliases: `Запрос`/`Запит`/`Query`, `ПрисоединитьБД`/`ПриєднатиБД`/`AttachDB`, `Выполнить`/`Виконати`/`Execute`
+- **Live ERP dashboard** (Sprint 12) — `/erp-dashboard` — budget utilization chart (Canvas 2D), payroll summary, PO spend, collapsible org tree; period filter; no external CDN; trilingual RU/UK/EN
+- **REST API v1 extended** (Sprint 12) — `GET /api/v1/erp/chart-data?period=YYYY-MM` — budget + PO spend for dashboard
 - **Cython transpiler** — typed `.pyx` output, `cdef long` / `cpdef` for 10–50× speedup
-- **Web UI** — Flask shell with live SSE script runner, user management, admin panel
-- **384 tests** — lexer, parser, runtime, transpiler, integration
+- **Web UI** — Flask shell with live SSE script runner, ERP dashboard, user management, admin panel
+- **406 tests** — lexer, parser, runtime, transpiler, ERP persistence, query engine, dashboard routes
 
 ---
 
@@ -92,6 +95,10 @@ python -m src.cli serve
 | `demo_persistence_ru.1s` | Sprint 11: OrgChart+Budget+Payroll → SQLite → reload + ERP queries (Russian) |
 | `demo_persistence_uk.1s` | Sprint 11: Агрохолдинг → SQLite → reload + Ukrainian ERP queries |
 | `demo_erp_query_en.1s` | Sprint 11: ERPQuery layer — budget utilization, PO spend, payroll history, summary |
+| `demo_query_erp_en.1s` | Sprint 12: Query ERP tables from .1s scripts (English) — SELECT org_nodes, budget, payroll |
+| `demo_query_erp_ru.1s` | Sprint 12: Запросы к таблицам ERP из .1s скриптов (Russian) |
+| `demo_query_erp_uk.1s` | Sprint 12: Запити до таблиць ERP зі скриптів .1s (Ukrainian) |
+| `demo_query_erp_join_en.1s` | Sprint 12: JOIN in-memory ValueTable with org_nodes from erp.db in one query |
 
 ---
 

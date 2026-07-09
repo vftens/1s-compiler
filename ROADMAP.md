@@ -81,7 +81,19 @@
 
 ---
 
-## 🌍 v1.0 — Open ecosystem (2027)
+## ✅ v1.0 — Sprint 12 complete (July 2026)
+
+- [x] **Script query engine** — `Query("SELECT …").AttachDB("erp.db").Execute()` lets `.1s` scripts query Sprint 11 SQLite tables (`org_nodes`, `budget_allocations`, `budget_entries`, `payroll_results`, `workflow_rules`); in-memory `ValueTable` joins with SQLite tables in a single query
+- [x] **Path security** — `AttachDB` validates path stays inside `ROOT/data/`; `1S_ALLOW_ANY_DB_PATH=1` env override for CLI/CI
+- [x] **Full trilingual aliases** — `Запрос`/`Запит`/`Query`, `ПрисоединитьБД`/`ПриєднатиБД`/`AttachDB`, `Выполнить`/`Виконати`/`Execute`, `Выбрать`/`Вибрати`/`Select`, `Следующий`/`Наступний`/`Next`, `Значение`/`Значення`/`Value`
+- [x] **Live ERP dashboard** (`/erp-dashboard`) — Canvas 2D budget chart, payroll table, PO spend table, collapsible org tree; YYYY-MM period filter applies to all sections; no external CDN; XSS-safe via `escHtml()`
+- [x] **REST endpoint** — `GET /api/v1/erp/chart-data?period=YYYY-MM` — budget utilization + PO spend JSON for dashboard
+- [x] **Demo suite** — `demo_query_erp_en.1s`, `demo_query_erp_ru.1s`, `demo_query_erp_uk.1s`, `demo_query_erp_join_en.1s`
+- [x] **22 new tests** — AttachDB, path security, concurrent reads, trilingual aliases, dashboard routes, bonus regression
+
+---
+
+## 🌍 v1.1 — Open ecosystem (2027)
 
 - [ ] **Module registry** — community-published accounting rules, payroll formulas
 - [ ] **1C infobase reader** — import data from real 1C `.dt` / `.cf` files
