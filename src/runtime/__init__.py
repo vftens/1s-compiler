@@ -61,6 +61,50 @@ from .maintenance import (
     КарткаОбладнання, АналітикаТО, СтатусОбладнання,
 )
 
+# ── Sprint 10: SAP/Oracle-comparable configuration layer ────────────────────
+from .org import (
+    OrgChart, OrgNode, OrgType,
+    HOLDING, LEGAL_ENTITY, PLANT, DEPARTMENT, COST_CENTER, PROFIT_CENTER,
+    ОрганизационнаяСтруктура, ОрганізаційнаСтруктура,
+    ХОЛДИНГ, ЮРИДИЧЕСКОЕ_ЛИЦО, ЗАВОД, ОТДЕЛ, МВЗ, ЦЕНТР_ПРИБЫЛИ,
+    ПІДПРИЄМСТВО, ЦЕХ, ВІДДІЛ, МВВ,
+)
+from .tax_engine import (
+    TaxEngine, TaxResult, TaxLine,
+    НалоговыйДвижок, ПодатковийДвижок,
+    РезультатНалога, РезультатПодатку,
+)
+from .budget import (
+    BudgetControl, BudgetBalance, BudgetAllocation, BudgetEntry,
+    КонтрольБюджета, КонтрольБюджету,
+)
+from .workflow_config import (
+    WorkflowConfig, WFRule,
+    НастройкиМаршрута, НалаштуванняМаршруту,
+)
+from .payroll import (
+    PayrollEngine, Employee, Absence, BonusScheme, Payslip, PayslipLine,
+    PayrollResult, PayPeriod, AbsenceType,
+    РасчетЗарплаты, РозрахунокЗарплати,
+    Сотрудник, Працівник,
+    Отсутствие, Відсутність,
+    Премия, Премія,
+    РасчетныйЛист, РозрахунковийЛист,
+    ПериодОплаты, ПеріодОплати,
+    ТипОтсутствия, ТипВідсутності,
+)
+from .three_way_match import (
+    ThreeWayMatch, SupplierInvoice, MatchResult, MatchStatus, MatchConfig,
+    InvoiceLine,
+    ТрёхстороннееСопоставление, ТристороннєЗіставлення,
+    СчётПоставщика, РахунокПостачальника,
+)
+from .industry_profile import (
+    IndustryProfile, load_profile,
+    ОтраслевойПрофиль, ГалузевийПрофіль,
+    ЗагрузитьПрофиль, ЗавантажитиПрофіль,
+)
+
 __all__ = [
     # Types
     "Undefined", "_1SException", "Array", "Structure",
@@ -138,4 +182,42 @@ __all__ = [
     # Excel / CSV export
     "ExcelWorkbook", "ExcelSheet", "ExportCSV",
     "КнигаExcel", "ЕксельЗбереження", "ЭкспортCSV",
+
+    # Sprint 10 — OrgUnit
+    "OrgChart", "OrgNode", "OrgType",
+    "HOLDING", "LEGAL_ENTITY", "PLANT", "DEPARTMENT", "COST_CENTER", "PROFIT_CENTER",
+    "ОрганизационнаяСтруктура", "ОрганізаційнаСтруктура",
+    "ХОЛДИНГ", "ЮРИДИЧЕСКОЕ_ЛИЦО", "ЗАВОД", "ОТДЕЛ", "МВЗ", "ЦЕНТР_ПРИБЫЛИ",
+    "ПІДПРИЄМСТВО", "ЦЕХ", "ВІДДІЛ", "МВВ",
+
+    # Sprint 10 — TaxEngine
+    "TaxEngine", "TaxResult", "TaxLine",
+    "НалоговыйДвижок", "ПодатковийДвижок", "РезультатНалога", "РезультатПодатку",
+
+    # Sprint 10 — BudgetControl
+    "BudgetControl", "BudgetBalance", "BudgetAllocation", "BudgetEntry",
+    "КонтрольБюджета", "КонтрольБюджету",
+
+    # Sprint 10 — WorkflowConfig
+    "WorkflowConfig", "WFRule",
+    "НастройкиМаршрута", "НалаштуванняМаршруту",
+
+    # Sprint 10 — PayrollEngine
+    "PayrollEngine", "Employee", "Absence", "BonusScheme", "Payslip",
+    "PayslipLine", "PayrollResult", "PayPeriod", "AbsenceType",
+    "РасчетЗарплаты", "РозрахунокЗарплати",
+    "Сотрудник", "Працівник", "Отсутствие", "Відсутність",
+    "Премия", "Премія", "РасчетныйЛист", "РозрахунковийЛист",
+    "ПериодОплаты", "ПеріодОплати", "ТипОтсутствия", "ТипВідсутності",
+
+    # Sprint 10 — ThreeWayMatch
+    "ThreeWayMatch", "SupplierInvoice", "MatchResult", "MatchStatus", "MatchConfig",
+    "InvoiceLine",
+    "ТрёхстороннееСопоставление", "ТристороннєЗіставлення",
+    "СчётПоставщика", "РахунокПостачальника",
+
+    # Sprint 10 — IndustryProfile
+    "IndustryProfile", "load_profile",
+    "ОтраслевойПрофиль", "ГалузевийПрофіль",
+    "ЗагрузитьПрофиль", "ЗавантажитиПрофіль",
 ]

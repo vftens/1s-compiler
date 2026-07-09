@@ -1,0 +1,18 @@
+# USA 2024 — simplified federal tax rates (no state)
+# Source: IRS Publication 15 (2024)
+- name: FederalIncomeTax
+  rate: "0.22"
+  applies_to: income
+  desc: "Federal income tax 22% bracket (simplified)"
+- name: FICA_SocialSecurity
+  rate: "0.062"
+  applies_to: income
+  desc: "Social Security (FICA) 6.2%"
+- name: FICA_Medicare
+  rate: "0.0145"
+  applies_to: income
+  desc: "Medicare (FICA) 1.45%"
+- name: FUTA
+  rate: "0.006"
+  applies_to: employer
+  desc: "Federal Unemployment Tax Act 0.6%"

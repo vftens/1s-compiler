@@ -1,0 +1,36 @@
+# Default workflow approval routing — edit this YAML to change approval chains
+# No code changes needed. First matching rule wins (SAP condition technique).
+#
+# Conditions: amount_lt, amount_gte, amount_lte, amount_gt, category_eq, org_eq
+# Approvers: ordered list — all must approve in sequence
+
+purchase_order:
+  - condition:
+      amount_lt: 50000
+    approvers: [dept_head]
+  - condition:
+      amount_lt: 500000
+    approvers: [dept_head, cfo]
+  - condition:
+      amount_gte: 500000
+    approvers: [dept_head, cfo, ceo]
+
+repair_order:
+  - condition:
+      amount_lt: 100000
+    approvers: [maintenance_manager]
+  - condition:
+      amount_gte: 100000
+    approvers: [maintenance_manager, cfo]
+
+transport_order:
+  - condition:
+      amount_lt: 200000
+    approvers: [logistics_manager]
+  - condition:
+      amount_gte: 200000
+    approvers: [logistics_manager, cfo]
+
+"*":
+  - condition: {}
+    approvers: [manager]

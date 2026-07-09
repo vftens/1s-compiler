@@ -47,6 +47,7 @@ without buying a 1C license. Your existing `.1s` / `.bsl` scripts work as-is.
 - **Accumulation & Information registers** — inventory, payroll, HR
 - **SAP-comparable ERP modules** (Sprint 9) — Procurement (MM), Warehouse (WM/EWM), Logistics (TM/SD), Payroll (HCM), Maintenance (PM/EAM) — all via Workflow engine
 - **Workflow engine** — `Draft → Pending → Approved → Posted` state machine on every document
+- **YAML-configurable ERP layer** (Sprint 10) — OrgUnit hierarchy, N-level WorkflowConfig, TaxEngine (ru/ua/us/eu), ThreeWayMatch, PayrollEngine, BudgetControl, IndustryProfiles — add approval levels or change tax rates in YAML, no code changes
 - **Cython transpiler** — typed `.pyx` output, `cdef long` / `cpdef` for 10–50× speedup
 - **Web UI** — Flask shell with live SSE script runner, user management, admin panel
 - **384 tests** — lexer, parser, runtime, transpiler, integration
@@ -82,6 +83,9 @@ python -m src.cli serve
 | `demo_erp_full_ru.1s` | Full ERP cycle in Russian: Procurement→Warehouse→Logistics→Payroll→Maintenance |
 | `demo_erp_full_uk.1s` | Full ERP cycle in Ukrainian (ПДФО 18%, ЄСВ 22%) |
 | `demo_erp_full_en.1s` | Full ERP cycle in English (Federal tax 22%, FICA 7.65%) |
+| `demo_manufacturing_ru.1s` | Sprint 10: Manufacturing — OrgChart, Budget, 3-Way Match, Payroll (ru_2024) |
+| `demo_trade_uk.1s` | Sprint 10: Retail trade — YAML routing, ПДФО+ЄСВ+ВЗ payroll (ua_2024) |
+| `demo_construction_en.1s` | Sprint 10: Construction — Budget commitment, FICA payroll (us_2024) |
 
 ---
 

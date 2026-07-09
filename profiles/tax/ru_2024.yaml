@@ -1,0 +1,18 @@
+# Russia 2024 — tax rates for payroll calculation
+# Source: НК РФ (Tax Code of the Russian Federation) 2024
+- name: НДФЛ
+  rate: "0.13"
+  applies_to: income
+  desc: "Налог на доходы физических лиц 13%"
+- name: ПФР
+  rate: "0.22"
+  applies_to: employer
+  desc: "Пенсионный фонд России 22%"
+- name: ОМС
+  rate: "0.051"
+  applies_to: employer
+  desc: "Обязательное медицинское страхование 5.1%"
+- name: ФСС
+  rate: "0.029"
+  applies_to: employer
+  desc: "Фонд социального страхования 2.9%"

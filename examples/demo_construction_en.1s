@@ -1,0 +1,144 @@
+// =============================================================================
+// DEMO: Construction Company — Sprint 10 ERP (English)
+// Cycle: OrgStructure → Budget → Procurement → 3-Way Match → Payroll
+// =============================================================================
+
+Message("=== 1S ERP Sprint 10 — ABC Construction Ltd ===");
+Message("");
+
+// ── 1. INDUSTRY PROFILE ───────────────────────────────────────────────────────
+Message("── 1. Loading industry profile ──");
+Profile = load_profile("construction");
+Message("Profile: " + Profile.Name);
+Message("Tax profile: " + Profile.TaxProfileName);
+Message("");
+
+// ── 2. ORG STRUCTURE ──────────────────────────────────────────────────────────
+Message("── 2. Organizational structure ──");
+Org = OrgChart("ABC Construction Ltd");
+Org.AddNode("le1",  "ABC Construction USA Inc.",       "legal_entity", "root");
+Org.AddNode("div1", "West Coast Division",             "plant",         "le1");
+Org.AddNode("proj1","Project: Harbor Bridge Retrofit", "department",    "div1");
+Org.AddNode("proj2","Project: City Hall Renovation",   "department",    "div1");
+Org.AddNode("cc1",  "CC: Bridge Project",              "cost_center",   "proj1");
+Message(Org.Report());
+Message("");
+
+// ── 3. WORKFLOW CONFIG ────────────────────────────────────────────────────────
+Message("── 3. Approval routing (YAML) ──");
+WFCfg = WorkflowConfig.load("profiles/workflow/default.yaml");
+Approvers1 = WFCfg.get_approvers("purchase_order", 25000);
+Approvers2 = WFCfg.get_approvers("purchase_order", 250000);
+Approvers3 = WFCfg.get_approvers("purchase_order", 750000);
+Message("PO $25k:   " + String(Approvers1));
+Message("PO $250k:  " + String(Approvers2));
+Message("PO $750k:  " + String(Approvers3));
+Message("");
+
+// ── 4. BUDGET CONTROL ────────────────────────────────────────────────────────
+Message("── 4. Budget control ──");
+Budget = BudgetControl(False, 0.8);    // soft warning, no hard block (construction: site conditions vary)
+Budget.allocate("cc1", "2024-Q1", "materials", 500000);
+Budget.allocate("cc1", "2024-Q1", "equipment", 200000);
+Message("Budget allocated: materials=$500k, equipment=$200k");
+Message("");
+
+// ── 5. PROCUREMENT ────────────────────────────────────────────────────────────
+Message("── 5. Procurement ──");
+Sup1 = Supplier("V-001", "Pacific Steel & Concrete Inc.", 4.7, 45);
+PO1 = PurchaseOrder("PO-2024-0312", Sup1);
+PO1.AddLine("STL-H30", "Grade 30 Rebar Steel (ton)",        15, 2800, "ton");
+PO1.AddLine("CON-M40", "Ready-Mix Concrete M40 (m³)",      120,  180, "m³");
+PO1.AddLine("PLY-18",  "Marine Plywood 18mm (sheet)",      200,   45, "sht");
+
+Reserved = Budget.commit("cc1", "2024-Q1", PO1.Total, PO1.number, "materials");
+If Reserved Then
+    Message("Budget reserved: $" + String(PO1.Total));
+    PO1.submit("J.Smith (Site Manager)", "Bridge retrofit materials Q1");
+    PO1.approve("R.Johnson (Division VP)");
+    PO1.approve("C.Davis (CFO)");
+    Message("PO status: " + PO1.status);
+EndIf;
+Message("");
+
+// ── 6. GOODS RECEIPT ─────────────────────────────────────────────────────────
+Message("── 6. Goods receipt ──");
+GR1 = ReceivingOrder("GR-2024-0218", PO1);
+GR1.AddReceipt("STL-H30", "Grade 30 Rebar Steel", 15, 2800);
+GR1.AddReceipt("CON-M40", "Ready-Mix Concrete M40", 115, 180);    // 115 of 120 — partial
+GR1.AddReceipt("PLY-18",  "Marine Plywood 18mm", 200, 45);
+GR1.submit("warehouse");
+GR1.approve("warehouse_manager");
+GR1.post("warehouse");
+Message("GR: " + GR1.number + " | status: " + GR1.status);
+Message("");
+
+// ── 7. THREE-WAY MATCH ────────────────────────────────────────────────────────
+Message("── 7. Three-way match ──");
+Inv1 = SupplierInvoice("INV-PC-20240415", "Pacific Steel & Concrete Inc.");
+Inv1.AddLine("STL-H30", "Grade 30 Rebar Steel",  15,  2800);
+Inv1.AddLine("CON-M40", "Ready-Mix Concrete M40", 115, 183);   // price +1.67% (> 1% tol, < 3% tol)
+Inv1.AddLine("PLY-18",  "Marine Plywood 18mm",   200,   45);
+
+Match = ThreeWayMatch();
+Match.configure(5.0, 3.0, False);   // construction: 5% qty, 3% price, soft warning
+Result = Match.match(PO1, GR1, Inv1);
+Message(Result.report("en"));
+
+If Result.blocking Then
+    Message("BLOCKED: Invoice cannot be paid");
+Else
+    Message("Invoice approved for payment");
+    Budget.consume("cc1", "2024-Q1", Inv1.Total, Inv1.number, "materials");
+EndIf;
+Bal = Budget.balance("cc1", "2024-Q1", "materials");
+Message("Materials budget remaining: $" + String(Bal.Available));
+Message("Utilization: " + String(Round(Bal.utilization_pct, 1)) + "%");
+Message("");
+
+// ── 8. PAYROLL ────────────────────────────────────────────────────────────────
+Message("── 8. Payroll (us_2024 profile) ──");
+TaxEng = TaxEngine();
+PR = PayrollEngine(TaxEng);
+
+Emp1 = Employee("E01", "James Mitchell",  "Project Manager",   9500, "us_2024");
+Emp2 = Employee("E02", "Maria Gonzalez",  "Civil Engineer",    7800, "us_2024");
+Emp3 = Employee("E03", "Robert Kim",      "Site Foreman",      6200, "us_2024");
+Emp4 = Employee("E04", "Lisa Thompson",   "Safety Officer",    5800, "us_2024");
+PR.AddEmployee(Emp1);
+PR.AddEmployee(Emp2);
+PR.AddEmployee(Emp3);
+PR.AddEmployee(Emp4);
+
+// Gonzalez was on sick leave 2 days
+PR.AddAbsence("E02", "sick", 2, "2024-01");
+// Kim gets a performance bonus
+Bonus = BonusScheme("Performance bonus", "percent", 0.1);
+PR.AddBonus("E03", Bonus);
+
+Results = PR.calculate("2024-01");
+Message(PR.payroll_summary(Results, "en"));
+Message("");
+
+// Payslip for Kim
+For Each Res In Results Do
+    If Res.Employee.Id = "E03" Then
+        Slip = PR.GeneratePayslip(Res, "en");
+        Message(Slip.Render("en"));
+    EndIf;
+EndDo;
+Message("");
+
+// ── 9. BUDGET SUMMARY ────────────────────────────────────────────────────────
+Message("── 9. Budget summary ──");
+Message(Budget.report("cc1"));
+Message("");
+
+// ── FINAL SUMMARY ─────────────────────────────────────────────────────────────
+Message("=== SPRINT 10 COMPLETE ===");
+Message("✓ Org hierarchy (Holding → Division → Project → CostCenter)");
+Message("✓ Budget control with commitment and consumption");
+Message("✓ YAML workflow routing — no code change needed");
+Message("✓ 3-way match (PO + GR + Invoice) with 3% price tolerance");
+Message("✓ Payroll with us_2024 tax profile (Federal + FICA)");
+Message("✓ Industry profile: construction");

@@ -1,0 +1,34 @@
+# Industry profile: Logistics / Transport (Логистика / Логістика)
+name: Logistics
+name_ru: Логистика
+name_uk: Логістика
+
+workflow: profiles/workflow/default.yaml
+tax: profiles/tax/ru_2024.yaml
+
+warehouse:
+  lot_tracking: false
+  fifo: true
+  expiry_control: false
+  multi_location: true
+
+maintenance:
+  preventive_schedule: meter_based
+  spare_parts_integration: true
+  work_order_required: true
+
+payroll:
+  overtime_multiplier: 1.5
+  shift_allowance: true
+  hazard_pay: false
+
+procurement:
+  three_way_match: true
+  qty_tolerance_pct: 3
+  price_tolerance_pct: 2
+  hard_block: true
+
+budget:
+  hard_stop: true
+  warn_threshold: 0.9
+  period: monthly

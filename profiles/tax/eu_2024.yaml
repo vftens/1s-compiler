@@ -1,0 +1,14 @@
+# EU 2024 — generic European rates (average, not country-specific)
+# Adjust for your jurisdiction: DE, FR, PL, NL, etc.
+- name: IncomeTax
+  rate: "0.25"
+  applies_to: income
+  desc: "Income tax ~25% (EU average)"
+- name: SocialEmployer
+  rate: "0.20"
+  applies_to: employer
+  desc: "Social contributions (employer) ~20%"
+- name: SocialEmployee
+  rate: "0.10"
+  applies_to: income
+  desc: "Social contributions (employee) ~10%"

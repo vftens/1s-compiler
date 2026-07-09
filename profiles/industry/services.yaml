@@ -1,0 +1,34 @@
+# Industry profile: Professional Services (Услуги / Послуги)
+name: Services
+name_ru: Услуги
+name_uk: Послуги
+
+workflow: profiles/workflow/default.yaml
+tax: profiles/tax/eu_2024.yaml
+
+warehouse:
+  lot_tracking: false
+  fifo: false
+  expiry_control: false
+  multi_location: false
+
+maintenance:
+  preventive_schedule: calendar_based
+  spare_parts_integration: false
+  work_order_required: false
+
+payroll:
+  overtime_multiplier: 1.0    # salaried staff — no overtime multiplier
+  shift_allowance: false
+  hazard_pay: false
+
+procurement:
+  three_way_match: false      # often service POs, no GR
+  qty_tolerance_pct: 10
+  price_tolerance_pct: 5
+  hard_block: false
+
+budget:
+  hard_stop: false
+  warn_threshold: 0.95
+  period: monthly

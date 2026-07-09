@@ -1,0 +1,34 @@
+# Industry profile: Manufacturing (Производство / Виробництво)
+name: Manufacturing
+name_ru: Производство
+name_uk: Виробництво
+
+workflow: profiles/workflow/manufacturing.yaml
+tax: profiles/tax/ru_2024.yaml
+
+warehouse:
+  lot_tracking: true
+  fifo: true
+  expiry_control: false
+  multi_location: true
+
+maintenance:
+  preventive_schedule: meter_based
+  spare_parts_integration: true
+  work_order_required: true
+
+payroll:
+  overtime_multiplier: 1.5
+  shift_allowance: true
+  hazard_pay: true
+
+procurement:
+  three_way_match: true
+  qty_tolerance_pct: 3
+  price_tolerance_pct: 2
+  hard_block: true
+
+budget:
+  hard_stop: true
+  warn_threshold: 0.85
+  period: monthly

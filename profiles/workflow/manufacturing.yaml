@@ -1,0 +1,28 @@
+# Manufacturing — approval routing
+# Higher thresholds for capital-intensive operations (equipment, spare parts)
+
+purchase_order:
+  - condition:
+      amount_lt: 100000
+    approvers: [shop_manager]
+  - condition:
+      amount_lt: 1000000
+    approvers: [shop_manager, procurement_director]
+  - condition:
+      amount_gte: 1000000
+    approvers: [shop_manager, procurement_director, cfo, ceo]
+  - condition:
+      category_eq: capex
+    approvers: [shop_manager, procurement_director, cfo, ceo, board]
+
+repair_order:
+  - condition:
+      amount_lt: 200000
+    approvers: [maintenance_chief]
+  - condition:
+      amount_gte: 200000
+    approvers: [maintenance_chief, plant_director]
+
+"*":
+  - condition: {}
+    approvers: [plant_director]

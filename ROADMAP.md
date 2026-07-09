@@ -57,6 +57,20 @@
 
 ---
 
+## ✅ v0.8 — Sprint 10 complete (July 2026)
+
+- [x] **OrgUnit hierarchy** — `OrgChart` + `OrgNode`: Holding → LegalEntity → Plant → Department → CostCenter → ProfitCenter; full trilingual RU/UK/EN
+- [x] **WorkflowConfig** — YAML-configurable N-level approval routing; no code change needed to add an approval level; `profiles/workflow/*.yaml`
+- [x] **ThreeWayMatch** — automatic PO ↔ GR ↔ SupplierInvoice reconciliation with configurable tolerance (qty/price %) and blocking
+- [x] **TaxEngine** — pluggable tax profiles: `ru_2024` (НДФЛ+ПФР+ОМС+ФСС), `ua_2024` (ПДФО+ЄСВ+ВЗ), `us_2024` (Federal+FICA), `eu_2024`; YAML-extensible
+- [x] **IndustryProfile** — YAML configuration profiles: manufacturing, trade, construction, logistics, services
+- [x] **PayrollEngine** — payroll periods, absence tracking (vacation/sick/unpaid), bonus schemes, payslip generation, TaxEngine integration
+- [x] **BudgetControl** — commitment accounting: allocate → commit (PO submit) → consume (GR post) → release (PO rejection); hard/soft overrun control
+- [x] **Demo suite** — `demo_manufacturing_ru.1s`, `demo_trade_uk.1s`, `demo_construction_en.1s` — each runs full cycle end-to-end
+- [x] **Full trilingual RU/UK/EN** — all 7 new modules with complete alias coverage
+
+---
+
 ## 🌍 v1.0 — Open ecosystem (2027)
 
 - [ ] **Module registry** — community-published accounting rules, payroll formulas
