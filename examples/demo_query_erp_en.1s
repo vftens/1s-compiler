@@ -1,0 +1,43 @@
+// Sprint 12 Demo — Query ERP tables from a .1s script (English)
+// Run: python -m src.cli run examples/demo_query_erp_en.1s
+// Requires: data/erp.db populated (run demo_persistence_ru.1s or demo_erp_query_en.1s first)
+
+// Query org nodes directly from the persisted SQLite database
+Message("=== Sprint 12: Query Engine → ERP Database ===");
+
+q = Query("SELECT id, name, type, parent_id FROM org_nodes WHERE id <> 'root' LIMIT 20");
+q.AttachDB("erp.db");
+result = q.Execute();
+
+Message("Org nodes in database: " + result.Count());
+cursor = result.Choose();
+While cursor.Next() Do
+    Message("  [" + cursor.Value("type") + "] " + cursor.Value("name") + " (parent: " + cursor.Value("parent_id") + ")");
+EndWhile;
+
+// Query budget allocations
+Message("");
+Message("--- Budget allocations ---");
+qb = Query("SELECT org_id, period, account, amount FROM budget_allocations LIMIT 10");
+qb.AttachDB("erp.db");
+rb = qb.Execute();
+Message("Budget rows: " + rb.Count());
+cb = rb.Choose();
+While cb.Next() Do
+    Message("  " + cb.Value("org_id") + " / " + cb.Value("period") + " / " + cb.Value("account") + " = " + cb.Value("amount"));
+EndWhile;
+
+// Query payroll results
+Message("");
+Message("--- Payroll results ---");
+qp = Query("SELECT emp_id, emp_name, period, gross, net FROM payroll_results ORDER BY period DESC LIMIT 10");
+qp.AttachDB("erp.db");
+rp = qp.Execute();
+Message("Payroll rows: " + rp.Count());
+cp = rp.Choose();
+While cp.Next() Do
+    Message("  " + cp.Value("emp_name") + " (" + cp.Value("period") + "): gross=" + cp.Value("gross") + " net=" + cp.Value("net"));
+EndWhile;
+
+Message("");
+Message("=== Done. Query Engine extension working correctly. ===");

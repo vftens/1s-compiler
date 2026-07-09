@@ -1,0 +1,56 @@
+// Sprint 12 Demo — Join in-memory ValueTable with erp.db org_nodes (English)
+// Run: python -m src.cli run examples/demo_query_erp_join_en.1s
+// Requires: data/erp.db populated (run demo_persistence_ru.1s first)
+//
+// This demonstrates the key differentiating feature of Sprint 12:
+// joining an in-memory 1S ValueTable with a persisted SQLite ERP table
+// in a single ВЫБРАТЬ / SELECT query.
+
+Message("=== Sprint 12: Join In-Memory Table with ERP Database ===");
+
+// Build an in-memory "budget targets" table
+targets = New ValueTable;
+targets.Columns.Add("org_key");
+targets.Columns.Add("target_pct");
+
+row1 = targets.Add();
+row1.org_key = "dept-finance";
+row1.target_pct = 85;
+
+row2 = targets.Add();
+row2.org_key = "dept-hr";
+row2.target_pct = 90;
+
+row3 = targets.Add();
+row3.org_key = "dept-it";
+row3.target_pct = 80;
+
+Message("In-memory targets: " + targets.Count() + " rows");
+
+// Register the in-memory table and join with org_nodes from erp.db
+q = Query("SELECT t.org_key, t.target_pct, o.name AS org_name, o.type AS org_type
+           FROM targets t
+           LEFT JOIN org_nodes o ON o.id = t.org_key
+           ORDER BY t.target_pct DESC");
+q.RegisterTable("targets", targets);
+q.AttachDB("erp.db");
+result = q.Execute();
+
+Message("Join result rows: " + result.Count());
+Message("");
+Message("org_key          | target_pct | org_name              | org_type");
+Message("-----------------+------------+-----------------------+---------");
+cursor = result.Choose();
+While cursor.Next() Do
+    key  = cursor.Value("org_key");
+    pct  = cursor.Value("target_pct");
+    name = cursor.Value("org_name");
+    typ  = cursor.Value("org_type");
+    If name = Undefined Then
+        name = "(not in org chart)";
+    EndIf;
+    Message(key + " | " + pct + "% | " + name + " | " + typ);
+EndWhile;
+
+Message("");
+Message("=== Join complete. In-memory + SQLite ERP tables unified in one query. ===");
