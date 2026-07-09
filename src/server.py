@@ -648,7 +648,7 @@ def api_payroll_calculate():
         emp = Employee(
             id=emp_data["id"],
             name=emp_data["name"],
-            role=emp_data.get("role", ""),
+            position=emp_data.get("position", emp_data.get("role", "")),
             base_salary=emp_data["salary"],
             tax_profile=emp_data.get("tax_profile", "ru_2024"),
         )
@@ -658,7 +658,7 @@ def api_payroll_calculate():
         pr.add_absence(ab["emp_id"], ab["type"], ab["days"], ab.get("period", period))
 
     for bon in data.get("bonuses", []):
-        pr.add_bonus(ab["emp_id"], BonusScheme(
+        pr.add_bonus(bon["emp_id"], BonusScheme(
             bon["name"], bon.get("type", "percent"), bon["value"]
         ))
 
@@ -725,6 +725,59 @@ def api_erp_summary():
         })
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/api/v1/erp/chart-data")
+@login_required
+def api_erp_chart_data():
+    """
+    GET /api/v1/erp/chart-data?period=<YYYY-MM>
+    Returns budget utilization + PO spend for the dashboard charts.
+    Defaults to current month if period not provided. Capped at 500 rows each.
+    """
+    from .runtime.erp_query import ERPQuery
+    from datetime import date
+    period = request.args.get("period") or date.today().strftime("%Y-%m")
+    try:
+        q = ERPQuery(str(_ERP_DB))
+        budget_rows = q.budget_utilization(period=period)[:500]
+        po_rows = q.po_spend_by_supplier(period=period)[:500]
+        return jsonify({
+            "ok": True,
+            "period": period,
+            "budget": [
+                {**r,
+                 "allocated": float(r["allocated"]),
+                 "committed": float(r["committed"]),
+                 "consumed": float(r["consumed"])}
+                for r in budget_rows
+            ],
+            "po_spend": [
+                {**r,
+                 "committed": float(r.get("committed", 0)),
+                 "consumed": float(r.get("consumed", 0))}
+                for r in po_rows
+            ],
+        })
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Sprint 12 — ERP Dashboard
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/erp-dashboard")
+@login_required
+def erp_dashboard():
+    """Live ERP dashboard: budget chart, payroll, org tree, PO spend."""
+    from datetime import date
+    default_period = date.today().strftime("%Y-%m")
+    return render_template(
+        "erp_dashboard.html",
+        user=session["user"],
+        default_period=default_period,
+    )
 
 
 @app.route("/admin")

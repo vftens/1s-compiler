@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+{% block title %}ERP Dashboard — 1S: ERP Free Edition{% endblock %}
+
+{% block extra_head %}
+<style>
+.dash-header{display:flex;align-items:center;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+.dash-header h1{font-size:20px;font-weight:700;color:var(--blue-dark);flex:1}
+.period-form{display:flex;align-items:center;gap:8px}
+.period-form label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase}
+.period-input{padding:6px 10px;border:1px solid var(--border);border-radius:5px;
+              font-size:13px;font-family:monospace;width:110px}
+.period-input:focus{outline:none;border-color:var(--blue-mid)}
+.btn-refresh{padding:6px 14px;background:var(--blue-mid);color:#fff;border:none;
+             border-radius:5px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-refresh:hover{opacity:.88}
+
+/* Grid layout */
+.dash-grid{display:grid;gap:20px}
+.dash-row-full{grid-column:1/-1}
+.dash-row-half{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+.dash-card{background:#fff;border-radius:8px;padding:20px;
+           box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.dash-card-title{font-size:14px;font-weight:700;color:var(--blue-dark);
+                 margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+/* State classes */
+.state-loading{display:flex;align-items:center;gap:8px;
+               color:var(--text-muted);font-size:13px;padding:20px 0}
+.spinner{width:16px;height:16px;border:2px solid var(--border);
+         border-top-color:var(--blue-mid);border-radius:50%;
+         animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.state-error{color:var(--danger);font-size:13px;padding:16px 0;display:flex;gap:6px}
+.state-empty{color:var(--text-muted);font-size:13px;padding:16px 0;font-style:italic}
+
+/* Canvas chart */
+.chart-wrap{overflow-x:auto}
+canvas{display:block;max-width:100%}
+
+/* Tables */
+.dash-table{width:100%;border-collapse:collapse;font-size:12px}
+.dash-table th{padding:7px 10px;background:#f5f5f5;color:var(--text-muted);
+               font-weight:600;text-align:left;border-bottom:2px solid var(--border);
+               white-space:nowrap}
+.dash-table td{padding:7px 10px;border-bottom:1px solid var(--border)}
+.dash-table tr:hover td{background:#f9f9f9}
+.num{text-align:right;font-family:monospace}
+.badge-util{display:inline-block;padding:2px 7px;border-radius:10px;
+            font-size:11px;font-weight:700}
+.badge-ok{background:#e8f5e9;color:#2e7d32}
+.badge-warn{background:#fff3e0;color:#e65100}
+.badge-over{background:#ffebee;color:#c62828}
+
+/* Org tree */
+details.org-section{border:none;padding:0}
+details.org-section summary{cursor:pointer;font-size:13px;color:var(--blue-mid);
+                             font-weight:600;padding:4px 0;list-style:none;
+                             display:flex;align-items:center;gap:6px}
+details.org-section summary::before{content:"▶";font-size:10px;transition:transform .15s}
+details.org-section[open] summary::before{transform:rotate(90deg)}
+.org-tree{margin:0;padding:0;list-style:none}
+.org-node{padding:4px 0 4px 20px;font-size:13px;border-left:2px solid var(--border);
+          margin-left:8px;color:var(--text)}
+.org-node .org-type{font-size:10px;color:var(--text-muted);font-weight:600;
+                     text-transform:uppercase;margin-left:6px}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-header">
+  <h1>🗂 Monthly ERP Summary / Щомісячний ЕРП Звіт</h1>
+  <div class="period-form">
+    <label for="period-input">Period</label>
+    <input id="period-input" class="period-input" type="month"
+           value="{{ default_period }}" max="{{ default_period }}">
+    <button class="btn-refresh" onclick="loadAll()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="dash-grid">
+
+  <!-- Budget Utilization (full width) -->
+  <div class="dash-card dash-row-full">
+    <div class="dash-card-title">📊 Budget Utilization / Використання Бюджету</div>
+    <div id="budget-state" class="state-loading">
+      <span class="spinner"></span> Loading budget data…
+    </div>
+    <div class="chart-wrap" id="budget-chart-wrap" style="display:none">
+      <canvas id="budget-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Payroll + PO side by side -->
+  <div class="dash-row-half">
+
+    <!-- Payroll Summary -->
+    <div class="dash-card">
+      <div class="dash-card-title">👥 Payroll Summary / Зарплатна Відомість</div>
+      <div id="payroll-state" class="state-loading">
+        <span class="spinner"></span> Loading payroll…
+      </div>
+      <div id="payroll-wrap" style="display:none">
+        <table class="dash-table" id="payroll-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th class="num">Gross</th>
+              <th class="num">Net</th>
+              <th>Profile</th>
+            </tr>
+          </thead>
+          <tbody id="payroll-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PO Spend -->
+    <div class="dash-card">
+      <div class="dash-card-title">📦 Recent PO Spend / Витрати по ЗП</div>
+      <div id="po-state" class="state-loading">
+        <span class="spinner"></span> Loading PO spend…
+      </div>
+      <div id="po-wrap" style="display:none">
+        <table class="dash-table" id="po-table">
+          <thead>
+            <tr>
+              <th>Document</th>
+              <th class="num">Committed</th>
+              <th class="num">Consumed</th>
+            </tr>
+          </thead>
+          <tbody id="po-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /.dash-row-half -->
+
+  <!-- Org Tree (collapsible, below fold) -->
+  <div class="dash-card dash-row-full">
+    <details class="org-section">
+      <summary>🏢 Organisation Structure / Організаційна Структура</summary>
+      <div id="org-state" class="state-loading" style="margin-top:12px">
+        <span class="spinner"></span> Loading org chart…
+      </div>
+      <ul class="org-tree" id="org-tree" style="display:none;margin-top:12px"></ul>
+    </details>
+  </div>
+
+</div><!-- /.dash-grid -->
+
+<script>
+(function() {
+
+  function period() {
+    return document.getElementById('period-input').value || '{{ default_period }}';
+  }
+
+  function setState(stateId, wrapId, mode, msg) {
+    var s = document.getElementById(stateId);
+    var w = document.getElementById(wrapId);
+    s.style.display = (mode !== 'data') ? '' : 'none';
+    if (w) w.style.display = (mode === 'data') ? '' : 'none';
+    if (mode === 'loading') {
+      s.className = 'state-loading';
+      s.innerHTML = '<span class="spinner"></span> ' + (msg || 'Loading…');
+    } else if (mode === 'error') {
+      s.className = 'state-error';
+      s.textContent = '⚠ ' + (msg || 'Could not load data');
+    } else if (mode === 'empty') {
+      s.className = 'state-empty';
+      s.textContent = msg || 'No data for selected period.';
+    }
+  }
+
+  function fmt(n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+
+  // ── Budget chart ──────────────────────────────────────────────────────────
+
+  function loadBudget(p) {
+    setState('budget-state', 'budget-chart-wrap', 'loading', 'Loading budget data…');
+    fetch('/api/v1/erp/chart-data?period=' + encodeURIComponent(p))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) { setState('budget-state', 'budget-chart-wrap', 'error', data.error); return; }
+        var rows = data.budget || [];
+        if (!rows.length) {
+          setState('budget-state', 'budget-chart-wrap', 'empty', 'No budget data for ' + p + '.');
+          return;
+        }
+        setState('budget-state', 'budget-chart-wrap', 'data');
+        drawBudgetChart(rows);
+        loadPO(data.po_spend || []);
+      })
+      .catch(function(e) { setState('budget-state', 'budget-chart-wrap', 'error', e.message); });
+  }
+
+  function drawBudgetChart(rows) {
+    var ROW_H = 32, LABEL_W = 170, BAR_MAX = 400, PAD = 10, HEADER = 30;
+    var canvas = document.getElementById('budget-canvas');
+    var W = Math.min(canvas.parentElement.clientWidth || 700, 900);
+    var H = rows.length * ROW_H + HEADER + PAD * 2;
+    canvas.width = W;
+    canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    var barW = W - LABEL_W - PAD * 2;
+    var maxVal = rows.reduce(function(m, r) { return Math.max(m, r.allocated, r.consumed); }, 1);
+
+    // Header
+    ctx.font = '11px monospace';
+    ctx.fillStyle = '#757575';
+    ctx.fillText('Org / Account', PAD, HEADER - 8);
+    ctx.fillText('Allocated', LABEL_W + PAD, HEADER - 8);
+    ctx.fillText('Consumed', LABEL_W + PAD + barW * 0.5, HEADER - 8);
+
+    rows.forEach(function(r, i) {
+      var y = HEADER + PAD + i * ROW_H;
+      var label = (r.org_id || r.account || '—').substring(0, 22);
+      if (label.length === 22) label = label.substring(0, 20) + '…';
+
+      // Label
+      ctx.font = '13px monospace';
+      ctx.fillStyle = '#212121';
+      ctx.fillText(label, PAD, y + ROW_H * 0.6);
+
+      // Allocated bar (blue)
+      var allocW = Math.round((r.allocated / maxVal) * barW * 0.9);
+      ctx.fillStyle = '#4A90D9';
+      ctx.fillRect(LABEL_W + PAD, y + 4, allocW, ROW_H - 12);
+
+      // Consumed bar (red) overlaid
+      var consumeW = Math.round((r.consumed / maxVal) * barW * 0.9);
+      ctx.fillStyle = '#E85D5D';
+      ctx.fillRect(LABEL_W + PAD, y + 4 + (ROW_H - 12) * 0.5, consumeW, (ROW_H - 12) * 0.45);
+
+      // Value labels
+      ctx.font = '11px monospace';
+      ctx.fillStyle = '#546e7a';
+      ctx.fillText(fmt(r.allocated), LABEL_W + PAD + allocW + 4, y + ROW_H * 0.45);
+      ctx.fillText(fmt(r.consumed),  LABEL_W + PAD + consumeW + 4, y + ROW_H * 0.85);
+
+      // Separator
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.beginPath();
+      ctx.moveTo(0, y + ROW_H);
+      ctx.lineTo(W, y + ROW_H);
+      ctx.stroke();
+    });
+  }
+
+  // ── PO Spend ──────────────────────────────────────────────────────────────
+
+  function loadPO(rows) {
+    var tbody = document.getElementById('po-body');
+    if (!rows || !rows.length) {
+      setState('po-state', 'po-wrap', 'empty', 'No PO data for this period.');
+      return;
+    }
+    tbody.innerHTML = '';
+    rows.slice(0, 10).forEach(function(r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + escHtml(r.doc_number || r.doc_ref || '—') + '</td>' +
+        '<td class="num">' + fmt(r.committed) + '</td>' +
+        '<td class="num">' + fmt(r.consumed) + '</td>';
+      tbody.appendChild(tr);
+    });
+    setState('po-state', 'po-wrap', 'data');
+  }
+
+  // ── Payroll ───────────────────────────────────────────────────────────────
+
+  function loadPayroll(p) {
+    setState('payroll-state', 'payroll-wrap', 'loading', 'Loading payroll…');
+    fetch('/api/v1/payroll/history?period=' + encodeURIComponent(p))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) { setState('payroll-state', 'payroll-wrap', 'error', data.error); return; }
+        var rows = data.rows || [];
+        if (!rows.length) {
+          setState('payroll-state', 'payroll-wrap', 'empty', 'No payroll data for ' + p + '.');
+          return;
+        }
+        var tbody = document.getElementById('payroll-body');
+        tbody.innerHTML = '';
+        rows.forEach(function(r) {
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td>' + escHtml(r.emp_name || r.emp_id) + '</td>' +
+            '<td class="num">' + fmt(r.gross) + '</td>' +
+            '<td class="num">' + fmt(r.net) + '</td>' +
+            '<td>' + escHtml(r.tax_profile || '') + '</td>';
+          tbody.appendChild(tr);
+        });
+        setState('payroll-state', 'payroll-wrap', 'data');
+      })
+      .catch(function(e) { setState('payroll-state', 'payroll-wrap', 'error', e.message); });
+  }
+
+  // ── Org Tree ─────────────────────────────────────────────────────────────
+
+  function loadOrg() {
+    setState('org-state', 'org-tree', 'loading', 'Loading org chart…');
+    fetch('/api/v1/org')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) { setState('org-state', 'org-tree', 'error', data.error); return; }
+        var nodes = data.nodes || [];
+        if (!nodes.length) {
+          setState('org-state', 'org-tree', 'empty', 'No org structure seeded yet. Run a demo script to populate.');
+          return;
+        }
+        var ul = document.getElementById('org-tree');
+        ul.innerHTML = '';
+        // Build id→node map and parent→children
+        var byId = {}, children = {};
+        nodes.forEach(function(n) { byId[n.id] = n; children[n.id] = []; });
+        nodes.forEach(function(n) {
+          if (n.parent_id && children[n.parent_id]) {
+            children[n.parent_id].push(n);
+          } else if (!n.parent_id || n.id === 'root') {
+            // root-level
+          }
+        });
+        function renderNode(n, container) {
+          var li = document.createElement('li');
+          li.className = 'org-node';
+          li.innerHTML = escHtml(n.name) + ' <span class="org-type">' + escHtml(n.type || '') + '</span>';
+          container.appendChild(li);
+          var kids = children[n.id] || [];
+          if (kids.length) {
+            var sub = document.createElement('ul');
+            sub.className = 'org-tree';
+            kids.forEach(function(k) { renderNode(k, sub); });
+            li.appendChild(sub);
+          }
+        }
+        nodes.filter(function(n) { return n.id !== 'root' && (!n.parent_id || n.parent_id === 'root'); })
+          .forEach(function(n) { renderNode(n, ul); });
+        setState('org-state', 'org-tree', 'data');
+      })
+      .catch(function(e) { setState('org-state', 'org-tree', 'error', e.message); });
+  }
+
+  function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function loadAll() {
+    var p = period();
+    setState('po-state', 'po-wrap', 'loading', 'Loading PO spend…');
+    loadBudget(p);
+    loadPayroll(p);
+    loadOrg();
+  }
+
+  // Load on page open
+  loadAll();
+
+  // Re-load when period changes
+  document.getElementById('period-input').addEventListener('change', loadAll);
+
+})();
+</script>
+{% endblock %}
