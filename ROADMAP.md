@@ -93,7 +93,19 @@
 
 ---
 
-## 🌍 v1.1 — Open ecosystem (2027)
+## ✅ v1.1 — Sprint 14 complete (July 2026)
+
+- [x] **Linear Programming solver** — `LPSolver` backed by GLPK 5.0 (`glpsol.exe`); minimize/maximize, inequality/equality constraints, variable bounds, shadow prices; no scipy dependency
+- [x] **ERP LP helpers** — `BudgetAllocator` (optimal budget reallocation across org units), `ResourceAllocator` (transportation LP for staff assignment); both read directly from `erp.db`
+- [x] **REST LP endpoint** — `POST /api/v1/lp/solve` — full JSON problem definition → solution + shadow prices; 422 for infeasible/unbounded; DoS guard (500 vars, 1000 constraints); Bearer token support
+- [x] **LP Solver dashboard** — `/lp-solver` — browser LP problem builder: dynamic variable count, inequality/equality constraints, per-variable bounds, live solve, shadow prices table; no external CDN
+- [x] **Demo suite** — `demo_lp_solver_en.1s` (diet problem), `demo_lp_budget_ru.1s` (budget optimization), `demo_lp_resources_uk.1s` (resource assignment)
+- [x] **Full trilingual RU/UK/EN** — `НовыйСолвер`/`НовийСолвер`/`NewSolver`, all constraint/bound/result aliases
+- [x] **30 new tests** — solver math, ERP helpers, REST endpoint, dashboard, aliases; 566 passing total
+
+---
+
+## 🌍 v1.2 — Open ecosystem (2027)
 
 - [ ] **Module registry** — community-published accounting rules, payroll formulas
 - [ ] **1C infobase reader** — import data from real 1C `.dt` / `.cf` files

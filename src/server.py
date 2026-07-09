@@ -953,6 +953,113 @@ def editor_stream(run_id: str):
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Sprint 14 — Linear Programming Solver
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/lp-solver")
+@login_required
+def lp_solver_page():
+    return render_template("lp_solver.html", user=session.get("user"))
+
+
+@app.route("/api/v1/lp/solve", methods=["POST"])
+@login_required
+def api_lp_solve():
+    from .runtime.lp import LPSolver, _glpsol_path
+    import json as _json
+
+    data = request.get_json(force=True, silent=True)
+    if not data:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    objective = data.get("objective")
+    if not objective or not isinstance(objective, list) or len(objective) == 0:
+        return jsonify({"error": "objective must be a non-empty list of numbers"}), 400
+
+    direction = data.get("direction", "minimize")
+    if direction not in ("minimize", "maximize"):
+        return jsonify({"error": "direction must be \"minimize\" or \"maximize\""}), 400
+
+    n = len(objective)
+    ineq = data.get("inequality_constraints", [])
+    eq = data.get("equality_constraints", [])
+    bounds_raw = data.get("bounds")
+
+    # Validate constraint row lengths
+    for idx, c in enumerate(ineq):
+        row = c.get("coefficients", [])
+        if len(row) != n:
+            return jsonify({
+                "error": (
+                    f"Row length mismatch: objective has {n} variables, "
+                    f"inequality_constraint[{idx}] has {len(row)}"
+                )
+            }), 400
+    for idx, c in enumerate(eq):
+        row = c.get("coefficients", [])
+        if len(row) != n:
+            return jsonify({
+                "error": (
+                    f"Row length mismatch: objective has {n} variables, "
+                    f"equality_constraint[{idx}] has {len(row)}"
+                )
+            }), 400
+
+    # Build and run solver
+    solver = LPSolver()
+    if direction == "minimize":
+        solver.Minimize([float(x) for x in objective])
+    else:
+        solver.Maximize([float(x) for x in objective])
+
+    for c in ineq:
+        solver.AddInequalityConstraint(
+            [float(x) for x in c["coefficients"]], float(c["rhs"])
+        )
+    for c in eq:
+        solver.AddEqualityConstraint(
+            [float(x) for x in c["coefficients"]], float(c["rhs"])
+        )
+
+    if bounds_raw is not None:
+        parsed_bounds = []
+        for b in bounds_raw:
+            lo = None if b[0] is None else float(b[0])
+            hi = None if b[1] is None else float(b[1])
+            parsed_bounds.append([lo, hi])
+        solver.SetBounds(parsed_bounds)
+
+    try:
+        result = solver.Solve()
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 503
+
+    if result.status == "optimal":
+        return jsonify({
+            "status": result.status,
+            "values": result.values,
+            "objective_value": result.objective_value,
+            "shadow_prices": result.shadow_prices,
+            "message": result.message,
+            "variables_count": n,
+            "constraints_count": len(ineq) + len(eq),
+        })
+    else:
+        # infeasible / unbounded / error → 422
+        return jsonify({
+            "status": result.status,
+            "values": None,
+            "objective_value": None,
+            "shadow_prices": None,
+            "message": result.message,
+            "variables_count": n,
+            "constraints_count": len(ineq) + len(eq),
+        }), 422
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def run_server(host: str = "127.0.0.1", port: int = 5000, debug: bool = False):

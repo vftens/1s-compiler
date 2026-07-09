@@ -54,9 +54,12 @@ without buying a 1C license. Your existing `.1s` / `.bsl` scripts work as-is.
 - **Script query engine** (Sprint 12) — `Query("SELECT …").AttachDB("erp.db").Execute()` in `.1s` scripts; joins in-memory `ValueTable` with SQLite ERP tables in a single query; trilingual aliases: `Запрос`/`Запит`/`Query`, `ПрисоединитьБД`/`ПриєднатиБД`/`AttachDB`, `Выполнить`/`Виконати`/`Execute`
 - **Live ERP dashboard** (Sprint 12) — `/erp-dashboard` — budget utilization chart (Canvas 2D), payroll summary, PO spend, collapsible org tree; period filter; no external CDN; trilingual RU/UK/EN
 - **REST API v1 extended** (Sprint 12) — `GET /api/v1/erp/chart-data?period=YYYY-MM` — budget + PO spend for dashboard
+- **Linear Programming solver** (Sprint 14) — `LPSolver` backed by **GLPK 5.0** (`glpsol.exe`); minimize/maximize, inequality/equality constraints, per-variable bounds, shadow prices (dual variables); `BudgetAllocator` and `ResourceAllocator` ERP helpers; trilingual RU/UK/EN aliases (`НовыйСолвер`/`НовийСолвер`/`NewSolver`)
+- **REST LP endpoint** (Sprint 14) — `POST /api/v1/lp/solve` — JSON problem in, solution + shadow prices + status out; 422 for infeasible/unbounded; DoS guard (500 vars / 1000 constraints)
+- **LP Solver dashboard** (Sprint 14) — `/lp-solver` — browser-based LP problem builder: dynamic variables, inequality/equality constraints, bounds, live solve via REST
 - **Cython transpiler** — typed `.pyx` output, `cdef long` / `cpdef` for 10–50× speedup
 - **Web UI** — Flask shell with live SSE script runner, ERP dashboard, user management, admin panel
-- **406 tests** — lexer, parser, runtime, transpiler, ERP persistence, query engine, dashboard routes
+- **566 tests** — lexer, parser, runtime, transpiler, ERP persistence, query engine, dashboard routes, LP solver
 
 ---
 
@@ -99,6 +102,9 @@ python -m src.cli serve
 | `demo_query_erp_ru.1s` | Sprint 12: Запросы к таблицам ERP из .1s скриптов (Russian) |
 | `demo_query_erp_uk.1s` | Sprint 12: Запити до таблиць ERP зі скриптів .1s (Ukrainian) |
 | `demo_query_erp_join_en.1s` | Sprint 12: JOIN in-memory ValueTable with org_nodes from erp.db in one query |
+| `demo_lp_solver_en.1s` | Sprint 14: LP diet problem — minimize cost subject to nutrition constraints (GLPK 5.0) |
+| `demo_lp_budget_ru.1s` | Sprint 14: Максимизация взвешенной утилизации бюджета по отделам (Russian) |
+| `demo_lp_resources_uk.1s` | Sprint 14: Оптимальне призначення співробітників по проектах (Ukrainian) |
 
 ---
 

@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+{% block title %}LP Solver — 1S ERP{% endblock %}
+{% block content %}
+<div class="lp-page">
+  <h1>Linear Programming Solver <span class="badge-glpk">GLPK 5.0</span></h1>
+  <p class="lp-desc">Build and solve LP problems interactively. Results include optimal values, objective, and shadow prices (dual variables).</p>
+
+  <div class="lp-grid">
+    <!-- LEFT: problem builder -->
+    <div class="lp-panel">
+      <section class="lp-section">
+        <h2>Objective</h2>
+        <div class="dir-toggle">
+          <button id="btn-min" class="dir-btn active" onclick="setDir('minimize')">Minimize</button>
+          <button id="btn-max" class="dir-btn" onclick="setDir('maximize')">Maximize</button>
+        </div>
+        <div class="coef-row">
+          <span class="coef-label">c:</span>
+          <div id="obj-coefs" class="coef-list"></div>
+          <button class="icon-btn" onclick="addVar()" title="Add variable">＋</button>
+          <button class="icon-btn" onclick="removeVar()" title="Remove variable">－</button>
+        </div>
+        <div id="var-names" class="var-names"></div>
+      </section>
+
+      <section class="lp-section">
+        <h2>Constraints <span class="hint">(A·x ≥ b for ≥, or = b for equality)</span></h2>
+        <div class="tab-row">
+          <button class="tab-btn active" id="tab-ineq" onclick="switchTab('ineq')">Inequality (≥)</button>
+          <button class="tab-btn" id="tab-eq" onclick="switchTab('eq')">Equality (=)</button>
+        </div>
+        <div id="panel-ineq" class="constraint-panel">
+          <div id="ineq-list"></div>
+          <button class="add-row-btn" onclick="addConstraint('ineq')">＋ Add inequality constraint</button>
+        </div>
+        <div id="panel-eq" class="constraint-panel" style="display:none">
+          <div id="eq-list"></div>
+          <button class="add-row-btn" onclick="addConstraint('eq')">＋ Add equality constraint</button>
+        </div>
+      </section>
+
+      <section class="lp-section">
+        <h2>Bounds <span class="hint">(per variable, leave blank = unbounded)</span></h2>
+        <div id="bounds-list"></div>
+      </section>
+
+      <button class="solve-btn" onclick="solve()">▶ Solve</button>
+    </div>
+
+    <!-- RIGHT: result -->
+    <div class="lp-result-panel" id="result-panel" style="display:none">
+      <h2>Result</h2>
+      <div id="status-badge" class="status-badge"></div>
+      <div id="obj-result" class="obj-result"></div>
+
+      <h3>Variable Values</h3>
+      <table id="values-table" class="lp-table">
+        <thead><tr><th>Variable</th><th>Value</th></tr></thead>
+        <tbody id="values-body"></tbody>
+      </table>
+
+      <h3>Shadow Prices <span class="hint">(dual variables, inequality constraints)</span></h3>
+      <table id="shadow-table" class="lp-table">
+        <thead><tr><th>Constraint</th><th>Shadow Price</th></tr></thead>
+        <tbody id="shadow-body"></tbody>
+      </table>
+
+      <pre id="solver-msg" class="solver-msg"></pre>
+    </div>
+  </div>
+</div>
+
+<style>
+.lp-page { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+.badge-glpk { font-size: 0.55em; background: #2563eb; color: #fff; border-radius: 4px; padding: 2px 7px; vertical-align: middle; }
+.lp-desc { color: #64748b; margin-bottom: 1.5rem; }
+.lp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+@media (max-width: 800px) { .lp-grid { grid-template-columns: 1fr; } }
+.lp-panel { display: flex; flex-direction: column; gap: 1rem; }
+.lp-section { background: var(--card-bg, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 1rem; }
+.lp-section h2 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.75rem; }
+.hint { font-size: 0.75rem; font-weight: 400; color: #94a3b8; }
+.dir-toggle { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+.dir-btn { padding: 4px 16px; border: 1px solid #cbd5e1; border-radius: 6px; background: transparent; cursor: pointer; font-size: 0.85rem; color: inherit; }
+.dir-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.coef-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.coef-label { font-weight: 600; font-size: 0.9rem; }
+.coef-list { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.coef-list input { width: 52px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; text-align: center; background: var(--input-bg, #fff); color: inherit; }
+.icon-btn { width: 28px; height: 28px; border: 1px solid #cbd5e1; border-radius: 4px; background: transparent; cursor: pointer; font-size: 1rem; line-height: 1; color: inherit; }
+.var-names { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem; }
+.var-names span { font-size: 0.75rem; color: #64748b; width: 52px; text-align: center; }
+.tab-row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+.tab-btn { padding: 4px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: transparent; cursor: pointer; font-size: 0.82rem; color: inherit; }
+.tab-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+.constraint-panel { display: flex; flex-direction: column; gap: 0.4rem; }
+.constraint-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.constraint-row input.coef-in { width: 52px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.82rem; text-align: center; background: var(--input-bg, #fff); color: inherit; }
+.constraint-row input.rhs-in { width: 60px; padding: 3px 6px; border: 1px solid #2563eb; border-radius: 4px; font-size: 0.82rem; text-align: center; background: var(--input-bg, #fff); color: inherit; }
+.constraint-row .rel-sym { font-weight: 700; color: #2563eb; font-size: 0.9rem; }
+.constraint-row .del-btn { color: #ef4444; border: 1px solid #fca5a5; border-radius: 4px; background: transparent; cursor: pointer; padding: 2px 7px; font-size: 0.8rem; }
+.add-row-btn { margin-top: 0.5rem; padding: 4px 12px; border: 1px dashed #94a3b8; border-radius: 6px; background: transparent; cursor: pointer; font-size: 0.82rem; color: #64748b; }
+.bounds-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; }
+.bounds-row label { font-size: 0.82rem; width: 26px; }
+.bounds-row input { width: 60px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.82rem; text-align: center; background: var(--input-bg, #fff); color: inherit; }
+.bounds-row .bnd-sym { color: #64748b; font-size: 0.82rem; }
+.solve-btn { padding: 0.6rem 1.6rem; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 0.5rem; }
+.solve-btn:hover { background: #1d4ed8; }
+.lp-result-panel { background: var(--card-bg, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 1rem; align-self: start; }
+.status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-weight: 700; font-size: 0.9rem; margin-bottom: 0.75rem; }
+.status-optimal { background: #dcfce7; color: #166534; }
+.status-infeasible { background: #fee2e2; color: #991b1b; }
+.status-unbounded { background: #fef3c7; color: #92400e; }
+.status-error { background: #f1f5f9; color: #475569; }
+.obj-result { font-size: 1.3rem; font-weight: 700; margin-bottom: 1rem; }
+.lp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 1rem; }
+.lp-table th { background: #f1f5f9; padding: 6px 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.lp-table td { padding: 5px 10px; border-bottom: 1px solid #f1f5f9; }
+.solver-msg { font-size: 0.75rem; color: #94a3b8; white-space: pre-wrap; margin-top: 0.5rem; }
+@media (prefers-color-scheme: dark) {
+  .lp-section, .lp-result-panel { background: #1e293b; border-color: #334155; }
+  .tab-btn.active { background: #f8fafc; color: #0f172a; }
+  .dir-btn, .tab-btn, .icon-btn, .add-row-btn, .del-btn { border-color: #475569; }
+  .coef-list input, .constraint-row input, .bounds-row input { background: #0f172a; border-color: #475569; color: #f1f5f9; }
+  .lp-table th { background: #0f172a; }
+  .lp-table td { border-color: #1e293b; }
+  .status-optimal { background: #14532d; color: #86efac; }
+  .status-infeasible { background: #7f1d1d; color: #fca5a5; }
+  .status-unbounded { background: #78350f; color: #fde68a; }
+  .status-error { background: #1e293b; color: #94a3b8; }
+}
+:root[data-theme="dark"] .lp-section, :root[data-theme="dark"] .lp-result-panel { background: #1e293b; border-color: #334155; }
+:root[data-theme="light"] .lp-section, :root[data-theme="light"] .lp-result-panel { background: #f8fafc; border-color: #e2e8f0; }
+</style>
+
+<script>
+(function () {
+  var nVars = 3;
+  var direction = 'minimize';
+  var ineqCount = 0, eqCount = 0;
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function setDir(d) {
+    direction = d;
+    document.getElementById('btn-min').classList.toggle('active', d === 'minimize');
+    document.getElementById('btn-max').classList.toggle('active', d === 'maximize');
+  }
+  window.setDir = setDir;
+
+  function renderVars() {
+    var coefs = document.getElementById('obj-coefs');
+    var names = document.getElementById('var-names');
+    var bounds = document.getElementById('bounds-list');
+
+    // Preserve existing values
+    var oldCoefs = [];
+    coefs.querySelectorAll('input').forEach(function(i) { oldCoefs.push(i.value); });
+
+    coefs.innerHTML = '';
+    names.innerHTML = '';
+    for (var i = 0; i < nVars; i++) {
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.step = 'any';
+      inp.value = oldCoefs[i] !== undefined ? oldCoefs[i] : '1';
+      inp.dataset.idx = i;
+      coefs.appendChild(inp);
+
+      var span = document.createElement('span');
+      span.textContent = 'x' + (i + 1);
+      names.appendChild(span);
+    }
+
+    // Rebuild bounds
+    var oldBounds = [];
+    bounds.querySelectorAll('.bounds-row').forEach(function(row) {
+      var ins = row.querySelectorAll('input');
+      oldBounds.push([ins[0].value, ins[1].value]);
+    });
+    bounds.innerHTML = '';
+    for (var i = 0; i < nVars; i++) {
+      var lo = oldBounds[i] ? oldBounds[i][0] : '0';
+      var hi = oldBounds[i] ? oldBounds[i][1] : '';
+      var row = document.createElement('div');
+      row.className = 'bounds-row';
+      row.innerHTML =
+        '<label>x' + (i+1) + '</label>' +
+        '<input type="number" step="any" value="' + escHtml(lo) + '" placeholder="-∞">' +
+        '<span class="bnd-sym">≤ x' + (i+1) + ' ≤</span>' +
+        '<input type="number" step="any" value="' + escHtml(hi) + '" placeholder="+∞">';
+      bounds.appendChild(row);
+    }
+
+    // Rebuild all constraint coefficient inputs to match nVars
+    ['ineq', 'eq'].forEach(function(type) {
+      document.querySelectorAll('.constraint-row[data-type="' + type + '"]').forEach(function(row) {
+        var coefDiv = row.querySelector('.coef-list');
+        var oldVals = [];
+        coefDiv.querySelectorAll('input').forEach(function(i) { oldVals.push(i.value); });
+        coefDiv.innerHTML = '';
+        for (var i = 0; i < nVars; i++) {
+          var inp = document.createElement('input');
+          inp.type = 'number'; inp.step = 'any'; inp.className = 'coef-in';
+          inp.value = oldVals[i] !== undefined ? oldVals[i] : '0';
+          coefDiv.appendChild(inp);
+        }
+      });
+    });
+  }
+
+  function addVar() { nVars++; renderVars(); }
+  function removeVar() { if (nVars > 1) { nVars--; renderVars(); } }
+  window.addVar = addVar;
+  window.removeVar = removeVar;
+
+  function addConstraint(type) {
+    var list = document.getElementById(type + '-list');
+    var sym = type === 'ineq' ? '≥' : '=';
+    var id = type + '-' + (type === 'ineq' ? ++ineqCount : ++eqCount);
+    var row = document.createElement('div');
+    row.className = 'constraint-row'; row.id = id; row.dataset.type = type;
+
+    var coefDiv = document.createElement('div');
+    coefDiv.className = 'coef-list';
+    for (var i = 0; i < nVars; i++) {
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.step = 'any'; inp.className = 'coef-in'; inp.value = '0';
+      coefDiv.appendChild(inp);
+    }
+
+    var symSpan = document.createElement('span');
+    symSpan.className = 'rel-sym'; symSpan.textContent = sym;
+
+    var rhs = document.createElement('input');
+    rhs.type = 'number'; rhs.step = 'any'; rhs.className = 'rhs-in'; rhs.value = '0';
+
+    var del = document.createElement('button');
+    del.className = 'del-btn'; del.textContent = '✕';
+    del.onclick = function() { row.remove(); };
+
+    row.appendChild(coefDiv);
+    row.appendChild(symSpan);
+    row.appendChild(rhs);
+    row.appendChild(del);
+    list.appendChild(row);
+  }
+  window.addConstraint = addConstraint;
+
+  function switchTab(tab) {
+    ['ineq', 'eq'].forEach(function(t) {
+      document.getElementById('panel-' + t).style.display = t === tab ? '' : 'none';
+      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    });
+  }
+  window.switchTab = switchTab;
+
+  function getNumber(val) {
+    var v = parseFloat(val);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function buildPayload() {
+    var c = [];
+    document.getElementById('obj-coefs').querySelectorAll('input').forEach(function(i) {
+      c.push(getNumber(i.value));
+    });
+
+    var ineq = [], eq = [];
+    document.querySelectorAll('.constraint-row').forEach(function(row) {
+      var coeffs = [];
+      row.querySelectorAll('.coef-in').forEach(function(i) { coeffs.push(getNumber(i.value)); });
+      var rhs = getNumber(row.querySelector('.rhs-in').value);
+      if (row.dataset.type === 'ineq') ineq.push({ coefficients: coeffs, rhs: rhs });
+      else eq.push({ coefficients: coeffs, rhs: rhs });
+    });
+
+    var bounds = [];
+    document.querySelectorAll('.bounds-row').forEach(function(row) {
+      var ins = row.querySelectorAll('input');
+      var lo = ins[0].value.trim() === '' ? null : parseFloat(ins[0].value);
+      var hi = ins[1].value.trim() === '' ? null : parseFloat(ins[1].value);
+      bounds.push([lo, hi]);
+    });
+
+    return { objective: c, direction: direction, inequality_constraints: ineq, equality_constraints: eq, bounds: bounds };
+  }
+
+  function solve() {
+    var btn = document.querySelector('.solve-btn');
+    btn.textContent = '⏳ Solving…'; btn.disabled = true;
+
+    var payload = buildPayload();
+
+    fetch('/api/v1/lp/solve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(resp) { return resp.json().then(function(d) { return { ok: resp.ok, data: d }; }); })
+    .then(function(r) { renderResult(r.data, r.ok); })
+    .catch(function(err) { renderError(String(err)); })
+    .finally(function() { btn.textContent = '▶ Solve'; btn.disabled = false; });
+  }
+  window.solve = solve;
+
+  function renderResult(data, ok) {
+    var panel = document.getElementById('result-panel');
+    panel.style.display = '';
+
+    var badge = document.getElementById('status-badge');
+    var statusClass = { optimal: 'status-optimal', infeasible: 'status-infeasible', unbounded: 'status-unbounded', error: 'status-error' }[data.status] || 'status-error';
+    badge.className = 'status-badge ' + statusClass;
+    badge.textContent = (data.status || 'error').toUpperCase();
+
+    var objDiv = document.getElementById('obj-result');
+    if (data.status === 'optimal') {
+      var dirLabel = direction === 'minimize' ? 'Min' : 'Max';
+      objDiv.textContent = dirLabel + ' = ' + (data.objective_value !== null ? data.objective_value.toFixed(6) : 'N/A');
+    } else {
+      objDiv.textContent = data.message || '';
+    }
+
+    var tbody = document.getElementById('values-body');
+    tbody.innerHTML = '';
+    if (data.values) {
+      data.values.forEach(function(v, i) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>x' + (i+1) + '</td><td>' + escHtml(v.toFixed(6)) + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    var sbody = document.getElementById('shadow-body');
+    sbody.innerHTML = '';
+    if (data.shadow_prices && data.shadow_prices.length) {
+      data.shadow_prices.forEach(function(sp, i) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>ie' + (i+1) + '</td><td>' + escHtml(sp.toFixed(6)) + '</td>';
+        sbody.appendChild(tr);
+      });
+    } else {
+      sbody.innerHTML = '<tr><td colspan="2" style="color:#94a3b8;font-style:italic">None</td></tr>';
+    }
+
+    document.getElementById('solver-msg').textContent = data.message || '';
+  }
+
+  function renderError(msg) {
+    var panel = document.getElementById('result-panel');
+    panel.style.display = '';
+    document.getElementById('status-badge').className = 'status-badge status-error';
+    document.getElementById('status-badge').textContent = 'ERROR';
+    document.getElementById('obj-result').textContent = msg;
+    document.getElementById('values-body').innerHTML = '';
+    document.getElementById('shadow-body').innerHTML = '';
+  }
+
+  // Initialize with 3 variables and 1 default inequality constraint
+  renderVars();
+  addConstraint('ineq');
+  addConstraint('ineq');
+})();
+</script>
+{% endblock %}

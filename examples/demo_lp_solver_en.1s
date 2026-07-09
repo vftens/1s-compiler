@@ -1,0 +1,55 @@
+// Sprint 14 demo: Linear Programming — Classic Diet Problem (English)
+// Minimize cost subject to minimum nutrition constraints.
+// Variables: x1=bread, x2=milk, x3=cheese (units per day)
+// Cost:      $1,  $3,  $5
+// Protein:   10g, 8g,  20g  >= 50g/day
+// Carbs:     30g, 5g,   0g  >= 60g/day
+// Fat:        5g, 10g, 15g  >= 30g/day
+
+Solver = NewSolver();
+
+// Objective: minimize cost
+Cost = New Array;
+Cost.Add(1);
+Cost.Add(3);
+Cost.Add(5);
+Solver.Minimize(Cost);
+
+// Protein >= 50
+Protein = New Array;
+Protein.Add(10);
+Protein.Add(8);
+Protein.Add(20);
+Solver.AddInequalityConstraint(Protein, 50);
+
+// Carbs >= 60
+Carbs = New Array;
+Carbs.Add(30);
+Carbs.Add(5);
+Carbs.Add(0);
+Solver.AddInequalityConstraint(Carbs, 60);
+
+// Fat >= 30
+Fat = New Array;
+Fat.Add(5);
+Fat.Add(10);
+Fat.Add(15);
+Solver.AddInequalityConstraint(Fat, 30);
+
+// All variables >= 0
+Solver.AddBound(0, Undefined);
+Solver.AddBound(0, Undefined);
+Solver.AddBound(0, Undefined);
+
+Result = Solver.Solve();
+
+Message("=== Diet Optimization (GLPK 5.0) ===");
+Message("Status:      " + Result.Status);
+Message("Min cost:    $" + String(Result.ObjectiveValue));
+Message("Bread (x1):  " + String(Result.Values[0]) + " units");
+Message("Milk  (x2):  " + String(Result.Values[1]) + " units");
+Message("Cheese(x3):  " + String(Result.Values[2]) + " units");
+Message("Shadow prices (dual variables per constraint):");
+For Each SP In Result.ShadowPrices Do
+    Message("  " + String(SP));
+EndDo;

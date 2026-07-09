@@ -122,6 +122,14 @@ from .industry_profile import (
     ЗагрузитьПрофиль, ЗавантажитиПрофіль,
 )
 
+# ── Sprint 14: Linear Programming solver (GLPK 5.0 backend) ─────────────────
+from .lp import (
+    LPSolver, LPResult, BudgetAllocator, ResourceAllocator,
+    НовыйСолвер, НовийСолвер, NewSolver,
+    НовыйАллокаторБюджета, НовийАллокаторБюджету, NewBudgetAllocator,
+    НовыйАллокаторРесурсов, НовийАллокаторРесурсів, NewResourceAllocator,
+)
+
 __all__ = [
     # Types
     "Undefined", "_1SException", "Array", "Structure",

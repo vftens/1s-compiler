@@ -178,6 +178,10 @@ hr{border:none;border-top:1px solid var(--border);margin:20px 0}
      class="{{ 'active' if request.endpoint == 'erp_dashboard' }}">
     <span class="icon">🗂</span> ERP Dashboard
   </a>
+  <a href="{{ url_for('lp_solver_page') }}"
+     class="{{ 'active' if request.endpoint == 'lp_solver_page' }}">
+    <span class="icon">📐</span> LP Solver
+  </a>
 
   <div class="section-title">{{ t.nav_modules }}</div>
   {% set modules_list = [
