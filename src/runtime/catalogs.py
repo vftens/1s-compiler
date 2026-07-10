@@ -256,7 +256,7 @@ class Document:
         object.__setattr__(self, "_num",    num_int)
         object.__setattr__(self, "_posted", False)
         object.__setattr__(self, "_tabs",   {})
-        label = doc_type if doc_type else f"{num_int:06d}"
+        label = f"{num_int:06d}"
         object.__setattr__(self, "_data",   {
             "Номер":    label,
             "Number":   label,
@@ -351,7 +351,7 @@ class Document:
     def __str__(self):
         t = object.__getattribute__(self, "_type")
         n = object.__getattribute__(self, "_data").get("Номер", "?")
-        return f"{t} №{n}"
+        return f"{t} N{n}"
 
     # Russian aliases
     ТабличнаяЧасть          = TabSection
