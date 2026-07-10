@@ -1,0 +1,36 @@
+// Demo: break-even analysis
+// Calculates units needed to cover fixed costs, monthly profit at target volume, payback.
+
+UnitPrice          = 1200;
+VariableCostPerUnit = 780;
+FixedCostPerMonth  = 85000;
+InitialInvestment  = 450000;
+TargetUnits        = 200;
+
+ContributionMargin = UnitPrice - VariableCostPerUnit;
+
+If ContributionMargin <= 0 Then
+    Message("Error: price must exceed variable cost. No break-even exists.");
+Else
+    ContributionPct    = ContributionMargin / UnitPrice * 100;
+    BreakEvenUnits     = FixedCostPerMonth / ContributionMargin;
+    BreakEvenRevenue   = BreakEvenUnits * UnitPrice;
+    MonthlyProfit      = TargetUnits * ContributionMargin - FixedCostPerMonth;
+
+    Message("=== Break-even analysis ===");
+    Message("Unit price:          " + String(UnitPrice));
+    Message("Variable cost/unit:  " + String(VariableCostPerUnit));
+    Message("Contribution margin: " + String(ContributionMargin) + "  (" + String(ContributionPct) + "%)");
+    Message("Fixed costs/month:   " + String(FixedCostPerMonth));
+    Message("Break-even volume:   " + String(BreakEvenUnits) + " units/month");
+    Message("Break-even revenue:  " + String(BreakEvenRevenue));
+    Message("---");
+    Message("Target volume:       " + String(TargetUnits) + " units/month");
+    Message("Monthly profit:      " + String(MonthlyProfit));
+    If MonthlyProfit > 0 Then
+        PaybackMonths = InitialInvestment / MonthlyProfit;
+        Message("Investment payback:  " + String(PaybackMonths) + " months");
+    Else
+        Message("Loss at target volume — increase units or cut costs.");
+    EndIf;
+EndIf;

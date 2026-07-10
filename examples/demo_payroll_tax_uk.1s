@@ -1,0 +1,37 @@
+// Демо: розрахунок ПДФО + ВЗ + ЄСВ (Україна, 2024)
+// ПДФО 18% + ВЗ 1.5% — утримуються з доходу
+// ЄСВ 22% — нараховується зверху; мінімальна база = МЗП (7100 грн), максимальна = 15 * МЗП
+
+MonthlyGross  = 45000;
+MinWage       = 7100;
+RatePDFO      = 0.18;
+RateVZ        = 0.015;
+RateJeJSV     = 0.22;
+
+// ПДФО та ВЗ (утримання з нарахованого доходу)
+PDFO = MonthlyGross * RatePDFO;
+VZ   = MonthlyGross * RateVZ;
+
+// ЄСВ — база обмежена знизу МЗП і зверху 15*МЗП
+MaxBaseJeJSV = MinWage * 15;
+BaseJeJSV    = MonthlyGross;
+If BaseJeJSV < MinWage Then
+    BaseJeJSV = MinWage;
+EndIf;
+If BaseJeJSV > MaxBaseJeJSV Then
+    BaseJeJSV = MaxBaseJeJSV;
+EndIf;
+JeJSV = BaseJeJSV * RateJeJSV;
+
+NetMonthly      = MonthlyGross - PDFO - VZ;
+EmployerCost    = MonthlyGross + JeJSV;
+EffRate         = (PDFO + VZ) / MonthlyGross * 100;
+
+Message("=== Розрахунок податків (Україна, 2024) ===");
+Message("Дохід (брутто):              " + String(MonthlyGross)   + " грн");
+Message("ПДФО 18%:                    " + String(PDFO)           + " грн");
+Message("ВЗ 1.5%:                     " + String(VZ)             + " грн");
+Message("На руки (нетто):             " + String(NetMonthly)     + " грн");
+Message("ЄСВ 22% (база " + String(BaseJeJSV) + " грн): "        + String(JeJSV) + " грн");
+Message("Вартість для роботодавця:    " + String(EmployerCost)   + " грн");
+Message("Ефективна ставка ПДФО+ВЗ:   " + String(EffRate)        + "%");

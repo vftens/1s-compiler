@@ -1,0 +1,65 @@
+// Demo: minimize payroll cost across 5 shifts (LP)
+// Variables: x0..x4 = workers starting each 8-hour shift
+// Shift wages: Shift 0,1,2 = $80  Shift 3 = $96 (+20% evening)  Shift 4 = $120 (+50% night)
+
+Solver = NewSolver();
+
+Wages = New Array;
+Wages.Add(80);
+Wages.Add(80);
+Wages.Add(80);
+Wages.Add(96);
+Wages.Add(120);
+Solver.Minimize(Wages);
+
+// Each demand block needs >= N workers (rows = coverage during that block)
+// Format: which shifts are active in this block
+Block06 = New Array; Block06.Add(1); Block06.Add(0); Block06.Add(0); Block06.Add(0); Block06.Add(0);
+Solver.AddInequalityConstraint(Block06, 2);
+
+Block08 = New Array; Block08.Add(1); Block08.Add(1); Block08.Add(0); Block08.Add(0); Block08.Add(0);
+Solver.AddInequalityConstraint(Block08, 4);
+
+Block10 = New Array; Block10.Add(1); Block10.Add(1); Block10.Add(0); Block10.Add(0); Block10.Add(0);
+Solver.AddInequalityConstraint(Block10, 5);
+
+Block12 = New Array; Block12.Add(1); Block12.Add(1); Block12.Add(0); Block12.Add(0); Block12.Add(0);
+Solver.AddInequalityConstraint(Block12, 5);
+
+Block14 = New Array; Block14.Add(0); Block14.Add(1); Block14.Add(1); Block14.Add(0); Block14.Add(0);
+Solver.AddInequalityConstraint(Block14, 3);
+
+Block16 = New Array; Block16.Add(0); Block16.Add(0); Block16.Add(1); Block16.Add(1); Block16.Add(0);
+Solver.AddInequalityConstraint(Block16, 3);
+
+Block18 = New Array; Block18.Add(0); Block18.Add(0); Block18.Add(1); Block18.Add(1); Block18.Add(0);
+Solver.AddInequalityConstraint(Block18, 4);
+
+Block20 = New Array; Block20.Add(0); Block20.Add(0); Block20.Add(1); Block20.Add(1); Block20.Add(0);
+Solver.AddInequalityConstraint(Block20, 3);
+
+Block22 = New Array; Block22.Add(0); Block22.Add(0); Block22.Add(0); Block22.Add(1); Block22.Add(1);
+Solver.AddInequalityConstraint(Block22, 2);
+
+Block00 = New Array; Block00.Add(0); Block00.Add(0); Block00.Add(0); Block00.Add(0); Block00.Add(1);
+Solver.AddInequalityConstraint(Block00, 1);
+
+Solver.AddBound(0, Undefined);
+Solver.AddBound(0, Undefined);
+Solver.AddBound(0, Undefined);
+Solver.AddBound(0, Undefined);
+Solver.AddBound(0, Undefined);
+
+Result = Solver.Solve();
+
+If Result.Status = "optimal" Then
+    Message("=== Staffing: optimal shift plan ===");
+    Message("Shift 06:00 — " + String(Result.Values[0]) + " workers");
+    Message("Shift 08:00 — " + String(Result.Values[1]) + " workers");
+    Message("Shift 14:00 — " + String(Result.Values[2]) + " workers");
+    Message("Shift 16:00 — " + String(Result.Values[3]) + " workers ($96/shift)");
+    Message("Shift 22:00 — " + String(Result.Values[4]) + " workers ($120/shift)");
+    Message("Total daily payroll: $" + String(Result.ObjectiveValue));
+Else
+    Message("Solve error: " + Result.Message);
+EndIf;

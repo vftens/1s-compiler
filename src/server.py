@@ -1138,17 +1138,20 @@ def api_lp_solve():
             "variables_count": n,
             "constraints_count": len(ineq) + len(eq),
         })
-    else:
-        # infeasible / unbounded / error → 422
-        return jsonify({
-            "status": result.status,
-            "values": None,
-            "objective_value": None,
-            "shadow_prices": None,
-            "message": result.message,
-            "variables_count": n,
-            "constraints_count": len(ineq) + len(eq),
-        }), 422
+
+    payload = {
+        "status": result.status,
+        "values": None,
+        "objective_value": None,
+        "shadow_prices": None,
+        "message": result.message,
+        "variables_count": n,
+        "constraints_count": len(ineq) + len(eq),
+    }
+    if result.message and "Solver busy" in result.message:
+        return jsonify(payload), 503
+    # infeasible / unbounded / error → 422
+    return jsonify(payload), 422
 
 
 # ── Sprint 13: API discovery ──────────────────────────────────────────────────

@@ -1,0 +1,39 @@
+// Демо: максимізація маржі хлібозаводу (LP)
+// Змінні: x1=хліб (буханок/зміна), x2=булочки (шт./зміна)
+// Маржа: хліб 8 грн/шт., булочки 3 грн/шт.
+
+Solver = NewSolver();
+
+Margin = New Array;
+Margin.Add(8);
+Margin.Add(3);
+Solver.Maximize(Margin);
+
+// Борошно: хліб 0.8 кг, булочка 0.1 кг; запас 400 кг  (LE = <= negated to >=)
+Flour = New Array; Flour.Add(-0.8); Flour.Add(-0.1);
+Solver.AddInequalityConstraint(Flour, -400);
+
+// Піч: хліб 12 хв, булочка 4 хв; 480 хв/зміна
+Oven = New Array; Oven.Add(-12); Oven.Add(-4);
+Solver.AddInequalityConstraint(Oven, -480);
+
+// Нижня межа попиту
+MinBread = New Array; MinBread.Add(1); MinBread.Add(0);
+Solver.AddInequalityConstraint(MinBread, 20);   // x1 >= 20
+
+MinBun = New Array; MinBun.Add(0); MinBun.Add(1);
+Solver.AddInequalityConstraint(MinBun, 30);     // x2 >= 30
+
+Solver.AddBound(20, Undefined);
+Solver.AddBound(30, Undefined);
+
+Result = Solver.Solve();
+
+If Result.Status = "optimal" Then
+    Message("=== Хлібозавод: оптимальна зміна ===");
+    Message("Хліб:    " + String(Result.Values[0]) + " буханок");
+    Message("Булочки: " + String(Result.Values[1]) + " шт.");
+    Message("Маржа:   " + String(Result.ObjectiveValue) + " грн");
+Else
+    Message("Помилка розвязання: " + Result.Message);
+EndIf;

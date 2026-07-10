@@ -1,12 +1,17 @@
 """
 Linear Programming solver for 1S ERP scripts.
 Backend: GLPK 5.0 (glpsol.exe) via subprocess — no scipy dependency.
+
+Inequality constraints use >= convention (GLPK lower-bound rows).
+To express A·x <= b, use AddLEConstraint(row, b) which negates internally.
 """
 from __future__ import annotations
 
+import math
 import os
 import subprocess
 import tempfile
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -16,20 +21,33 @@ from typing import Optional
 _GLPK_DEFAULT = Path(__file__).resolve().parent.parent.parent / "glpk" / "glpsol.exe"
 
 def _glpsol_path() -> Path:
-    """Resolve glpsol.exe: env override → bundled → Downloads fallback."""
+    """Resolve glpsol.exe: env override → bundled."""
     env = os.environ.get("GLPSOL_PATH")
     if env:
         return Path(env)
     if _GLPK_DEFAULT.exists():
         return _GLPK_DEFAULT
-    # Developer fallback — Downloads location
-    fallback = Path(r"C:\Users\DrVITAL\Downloads\glpk-5.0\w64\glpsol.exe")
-    if fallback.exists():
-        return fallback
     raise FileNotFoundError(
         "glpsol.exe not found. Set GLPSOL_PATH env var or place glpsol.exe at "
-        f"{_GLPK_DEFAULT}"
+        f"{_GLPK_DEFAULT}. "
+        "Download GLPK 5.0 from https://sourceforge.net/projects/winglpk/"
     )
+
+
+def validate_glpsol() -> bool:
+    """Run a trivial 1-variable solve to confirm glpsol.exe works. Returns True on success."""
+    try:
+        p = _glpsol_path()
+        result = subprocess.run(
+            [str(p), "--version"], capture_output=True, text=True, timeout=5
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+# Semaphore: max 4 concurrent glpsol.exe processes.
+_SOLVER_SEM = threading.Semaphore(4)
 
 
 # ── Result dataclass ──────────────────────────────────────────────────────────
@@ -197,10 +215,13 @@ def _parse_solution(sol_text: str) -> tuple[str, Optional[list[float]], Optional
 
     if status == "optimal" and col_values:
         n = max(col_values.keys())
-        values = [col_values.get(i+1, 0.0) for i in range(n)]
+        raw_values = [col_values.get(i+1, 0.0) for i in range(n)]
+        # Guard against +Inf/-Inf which would crash json.dumps
+        if not all(math.isfinite(v) for v in raw_values):
+            return "error", None, None, None
         m = max(row_marginals.keys()) if row_marginals else 0
         shadow = [row_marginals.get(i+1, 0.0) for i in range(m)]
-        return status, values, obj, shadow
+        return status, raw_values, obj, shadow
 
     return status, None, None, None
 
@@ -242,8 +263,17 @@ class LPSolver:
     # ── Constraints ───────────────────────────────────────────────────────────
 
     def AddInequalityConstraint(self, row: list, rhs: float) -> "LPSolver":
-        """Add A·x ≥ rhs inequality (GLPK lower-bound row)."""
+        """Add A·x ≥ rhs inequality (GLPK lower-bound row).
+        Note: direction is >= (greater-than-or-equal).
+        To express A·x <= rhs, use AddLEConstraint instead.
+        """
         self._ineq.append(([float(x) for x in row], float(rhs)))
+        return self
+
+    def AddLEConstraint(self, row: list, rhs: float) -> "LPSolver":
+        """Add A·x <= rhs (less-than-or-equal). Negates internally to fit >= convention."""
+        negated = [-float(x) for x in row]
+        self._ineq.append((negated, -float(rhs)))
         return self
 
     def AddEqualityConstraint(self, row: list, rhs: float) -> "LPSolver":
@@ -253,9 +283,11 @@ class LPSolver:
     # RU aliases
     ДобавитьОграничениеНеравенство = AddInequalityConstraint
     ДобавитьОграничениеРавенство = AddEqualityConstraint
+    ДобавитьОграничениеНеравенствоLE = AddLEConstraint
     # UK aliases
     ДодатиОбмеженняНерівності = AddInequalityConstraint
     ДодатиОбмеженняРівності = AddEqualityConstraint
+    ДодатиОбмеженняНерівностіLE = AddLEConstraint
 
     # ── Bounds ────────────────────────────────────────────────────────────────
 
@@ -334,69 +366,79 @@ class LPSolver:
                 shadow_prices=None, message=str(exc),
             )
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            lp_file = os.path.join(tmpdir, "problem.lp")
-            sol_file = os.path.join(tmpdir, "solution.txt")
-            with open(lp_file, "w", encoding="ascii") as f:
-                f.write(lp_text)
+        acquired = _SOLVER_SEM.acquire(timeout=10)
+        if not acquired:
+            return LPResult(
+                status="error", values=None, objective_value=None,
+                shadow_prices=None, message="Solver busy — too many concurrent solves, try again",
+            )
 
-            direction_flag = "--min" if self._direction == "minimize" else "--max"
-            cmd = [
-                str(glpsol),
-                "--lp", lp_file,
-                direction_flag,
-                "-w", sol_file,
-            ]
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                lp_file = os.path.join(tmpdir, "problem.lp")
+                sol_file = os.path.join(tmpdir, "solution.txt")
+                with open(lp_file, "w", encoding="ascii") as f:
+                    f.write(lp_text)
 
-            try:
-                proc = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                )
-            except subprocess.TimeoutExpired:
-                return LPResult(
-                    status="error", values=None, objective_value=None,
-                    shadow_prices=None, message="Solver timed out after 60 seconds",
-                )
-            except Exception as exc:
-                return LPResult(
-                    status="error", values=None, objective_value=None,
-                    shadow_prices=None, message=str(exc),
-                )
+                direction_flag = "--min" if self._direction == "minimize" else "--max"
+                cmd = [
+                    str(glpsol),
+                    "--lp", lp_file,
+                    direction_flag,
+                    "-w", sol_file,
+                ]
 
-            # Determine status from stdout even if sol_file is missing
-            stdout = proc.stdout + proc.stderr
-            glpk_status = "error"
-            glpk_message = stdout.strip().splitlines()[-1] if stdout.strip() else "No output"
+                try:
+                    proc = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=60,
+                    )
+                except subprocess.TimeoutExpired:
+                    return LPResult(
+                        status="error", values=None, objective_value=None,
+                        shadow_prices=None, message="Solver timed out after 60 seconds",
+                    )
+                except Exception as exc:
+                    return LPResult(
+                        status="error", values=None, objective_value=None,
+                        shadow_prices=None, message=str(exc),
+                    )
 
-            if "OPTIMAL LP SOLUTION FOUND" in stdout:
-                glpk_status = "optimal"
-            elif "PROBLEM HAS NO FEASIBLE SOLUTION" in stdout or "INFEASIBLE" in stdout:
-                glpk_status = "infeasible"
-            elif "PROBLEM HAS UNBOUNDED SOLUTION" in stdout or "UNBOUNDED" in stdout:
-                glpk_status = "unbounded"
+                # Determine status from stdout even if sol_file is missing
+                stdout = proc.stdout + proc.stderr
+                glpk_status = "error"
+                glpk_message = stdout.strip().splitlines()[-1] if stdout.strip() else "No output"
 
-            if not os.path.exists(sol_file):
-                return LPResult(
-                    status=glpk_status, values=None, objective_value=None,
-                    shadow_prices=None, message=glpk_message,
-                )
+                if "OPTIMAL LP SOLUTION FOUND" in stdout:
+                    glpk_status = "optimal"
+                elif "PROBLEM HAS NO FEASIBLE SOLUTION" in stdout or "INFEASIBLE" in stdout:
+                    glpk_status = "infeasible"
+                elif "PROBLEM HAS UNBOUNDED SOLUTION" in stdout or "UNBOUNDED" in stdout:
+                    glpk_status = "unbounded"
 
-            with open(sol_file, encoding="ascii") as f:
-                sol_text = f.read()
+                if not os.path.exists(sol_file):
+                    return LPResult(
+                        status=glpk_status, values=None, objective_value=None,
+                        shadow_prices=None, message=glpk_message,
+                    )
 
-        status, values, obj, shadow = _parse_solution(sol_text)
+                with open(sol_file, encoding="ascii") as f:
+                    sol_text = f.read()
 
-        # For maximize: glpsol maximizes natively via --max, obj is already positive
-        return LPResult(
-            status=status,
-            values=values,
-            objective_value=obj,
-            shadow_prices=shadow,
-            message=glpk_message,
-        )
+            status, values, obj, shadow = _parse_solution(sol_text)
+
+            # For maximize: glpsol maximizes natively via --max, obj is already positive
+            return LPResult(
+                status=status,
+                values=values,
+                objective_value=obj,
+                shadow_prices=shadow,
+                message=glpk_message,
+            )
+        finally:
+            _SOLVER_SEM.release()
 
     # RU/UK/EN aliases
     Решить = Solve
@@ -410,7 +452,7 @@ class BudgetAllocator:
 
     Reads budget_allocations and budget_entries from erp.db.
     Formulates: maximize Σ weights[i] * x[i]
-                s.t.     x[i] ≤ allocated[i]
+                s.t.     x[i] ≤ amount[i]
                          Σ x[i] ≤ total_remaining
                          x[i] ≥ consumed[i]
     """

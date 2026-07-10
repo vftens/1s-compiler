@@ -1,3 +1,4 @@
+<!-- /autoplan restore point: /c/Users/DrVITAL/.gstack/projects/1s-compiler/sprint-14-lp-solver-autoplan-restore-20260710-155223.md -->
 # Sprint 14 Plan — Linear Programming Solver + ERP Optimization
 
 **Branch:** `sprint-14-lp-solver`

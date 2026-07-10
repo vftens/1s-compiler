@@ -1,0 +1,39 @@
+// Демо: минимизация затрат на офисные закупки (LP)
+// Переменные: x1=ручки (пачки), x2=бумага (стопки), x3=папки (штуки)
+// Цены: ручки 45₽/пачка, бумага 320₽/стопка, папки 28₽/шт.
+
+Solver = NewSolver();
+
+// Коэффициенты целевой функции (минимизируем стоимость)
+Cost = New Array;
+Cost.Add(45);
+Cost.Add(320);
+Cost.Add(28);
+Solver.Minimize(Cost);
+
+// Ограничения снизу: нужно хотя бы столько единиц (>= конвенция)
+R1 = New Array; R1.Add(1); R1.Add(0); R1.Add(0);
+Solver.AddInequalityConstraint(R1, 10);  // x1 >= 10 пачек ручек
+
+R2 = New Array; R2.Add(0); R2.Add(1); R2.Add(0);
+Solver.AddInequalityConstraint(R2, 5);   // x2 >= 5 стопок бумаги
+
+R3 = New Array; R3.Add(0); R3.Add(0); R3.Add(1);
+Solver.AddInequalityConstraint(R3, 20);  // x3 >= 20 папок
+
+// Верхние пределы через AddBound
+Solver.AddBound(10, 50);   // 10 <= x1 <= 50 пачек
+Solver.AddBound(5,  20);   // 5  <= x2 <= 20 стопок
+Solver.AddBound(20, 100);  // 20 <= x3 <= 100 папок
+
+Result = Solver.Solve();
+
+If Result.Status = "optimal" Then
+    Message("=== Закупки: оптимальный план ===");
+    Message("Ручки:    " + String(Result.Values[0]) + " пачек");
+    Message("Бумага:   " + String(Result.Values[1]) + " стопок");
+    Message("Папки:    " + String(Result.Values[2]) + " шт.");
+    Message("Итого:    " + String(Result.ObjectiveValue) + " руб.");
+Else
+    Message("Ошибка решения: " + Result.Message);
+EndIf;

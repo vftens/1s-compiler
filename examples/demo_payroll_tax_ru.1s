@@ -1,0 +1,43 @@
+// Демо: расчёт НДФЛ + страховых взносов (Россия, 2024)
+// НДФЛ: 13% до 5 млн ₽, 15% с суммы превышения
+// ЕСН: 30% до порога 1 917 000 ₽, 15% свыше
+
+GrossAnnual    = 6500000;
+ThresholdNDFL  = 5000000;
+ThresholdESN   = 1917000;
+RateNDFL1      = 0.13;
+RateNDFL2      = 0.15;
+RateESN1       = 0.30;
+RateESN2       = 0.15;
+
+// НДФЛ (прогрессивная шкала)
+If GrossAnnual <= ThresholdNDFL Then
+    NDFL = GrossAnnual * RateNDFL1;
+    NDFL1part = NDFL;
+    NDFL2part = 0;
+Else
+    NDFL1part = ThresholdNDFL * RateNDFL1;
+    NDFL2part = (GrossAnnual - ThresholdNDFL) * RateNDFL2;
+    NDFL = NDFL1part + NDFL2part;
+EndIf;
+
+// Страховые взносы (ЕСН)
+If GrossAnnual <= ThresholdESN Then
+    ESN = GrossAnnual * RateESN1;
+Else
+    ESN = ThresholdESN * RateESN1 + (GrossAnnual - ThresholdESN) * RateESN2;
+EndIf;
+
+NetAnnual      = GrossAnnual - NDFL;
+EmployerCost   = GrossAnnual + ESN;
+EffRate        = NDFL / GrossAnnual * 100;
+
+Message("=== Расчет налогов (Россия, 2024) ===");
+Message("Доход брутто:           " + String(GrossAnnual)    + " руб.");
+Message("НДФЛ всего:             " + String(NDFL)           + " руб.");
+Message("  по ставке 13%:        " + String(NDFL1part)      + " руб.");
+Message("  по ставке 15%:        " + String(NDFL2part)      + " руб.");
+Message("На руки (нетто):        " + String(NetAnnual)      + " руб.");
+Message("Страховые взносы (ЕСН): " + String(ESN)            + " руб.");
+Message("Полная стоимость:       " + String(EmployerCost)   + " руб.");
+Message("Эффективная ставка НДФЛ: " + String(EffRate)       + "%");
