@@ -11,10 +11,13 @@ import subprocess
 from functools import wraps
 from pathlib import Path
 from flask import (Flask, render_template, request, redirect, url_for,
-                   session, Response, flash, stream_with_context, jsonify)
+                   session, Response, flash, stream_with_context, jsonify, g, send_file)
 
 # In-memory store for editor run jobs: run_id → tmp_file_path
 _EDITOR_RUNS: dict[str, Path] = {}
+
+import re as _re
+import io as _io
 
 ROOT     = Path(__file__).parent.parent
 EXAMPLES = ROOT / "examples"
@@ -207,26 +210,114 @@ def inject_i18n():
     return {"t": build_t(lang), "lang": lang, "site": site}
 
 
+# ── Sprint 13: token auth + export + script persistence ──────────────────────
+
+from .runtime.token_auth import TokenStore
+from .runtime.export import PayrollExporter, BudgetExporter, OrgPdfExporter
+
+_ERP_DB_S13 = ROOT / "data" / "erp.db"
+_USER_SCRIPTS_DIR = ROOT / "data" / "user_scripts"
+_USER_SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+_token_store = TokenStore(_ERP_DB_S13)
+
+# Rate limiting for token endpoint (5 attempts / minute / IP)
+import time as _time
+_TOKEN_RATE: dict[str, list] = {}
+_TOKEN_RATE_LIMIT = 5
+_TOKEN_RATE_WINDOW = 60
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """Return True if request is allowed; False if rate limit exceeded."""
+    now = _time.time()
+    hits = [t for t in _TOKEN_RATE.get(ip, []) if now - t < _TOKEN_RATE_WINDOW]
+    _TOKEN_RATE[ip] = hits
+    if len(hits) >= _TOKEN_RATE_LIMIT:
+        return False
+    _TOKEN_RATE[ip].append(now)
+    return True
+
 # ── Auth decorators ───────────────────────────────────────────────────────────
 
 def login_required(f):
     @wraps(f)
     def wrapped(*a, **kw):
+        # Bearer token path (REST clients, CLI integrations)
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            raw = auth[7:]
+            user = _token_store.validate(raw)
+            if user:
+                g.current_user = user
+                return f(*a, **kw)
+            return jsonify({
+                "error": "invalid_token",
+                "hint": "Use Authorization: Bearer <token> or log in via /login",
+            }), 401
+        # Session cookie path (browser)
         if "user" not in session:
+            if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+                return jsonify({
+                    "error": "unauthenticated",
+                    "hint": "Use Authorization: Bearer <token> or log in via /login",
+                }), 401
             return redirect(url_for("login"))
+        g.current_user = session["user"]
         return f(*a, **kw)
     return wrapped
 
 def admin_required(f):
     @wraps(f)
     def wrapped(*a, **kw):
+        # Bearer token path
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            raw = auth[7:]
+            user = _token_store.validate(raw)
+            if user:
+                if user.get("role") != "admin":
+                    return jsonify({"error": "forbidden", "hint": "Admin role required"}), 403
+                g.current_user = user
+                return f(*a, **kw)
+            return jsonify({
+                "error": "invalid_token",
+                "hint": "Use Authorization: Bearer <token> or log in via /login",
+            }), 401
+        # Session cookie path
         if "user" not in session:
             return redirect(url_for("login"))
         if session["user"].get("role") != "admin":
             flash("Доступ запрещён: требуются права администратора.", "danger")
             return redirect(url_for("dashboard"))
+        g.current_user = session["user"]
         return f(*a, **kw)
     return wrapped
+
+# ── Global JSON error handlers (no HTML leakage) ─────────────────────────────
+
+@app.errorhandler(400)
+def err_400(e):
+    return jsonify({"error": "bad_request", "message": str(e)}), 400
+
+@app.errorhandler(401)
+def err_401(e):
+    return jsonify({"error": "unauthorized", "hint": "Use Authorization: Bearer <token> or log in via /login"}), 401
+
+@app.errorhandler(403)
+def err_403(e):
+    return jsonify({"error": "forbidden"}), 403
+
+@app.errorhandler(404)
+def err_404(e):
+    return jsonify({"error": "not_found"}), 404
+
+@app.errorhandler(405)
+def err_405(e):
+    return jsonify({"error": "method_not_allowed"}), 405
+
+@app.errorhandler(500)
+def err_500(e):
+    return jsonify({"error": "internal_server_error"}), 500
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -785,7 +876,7 @@ def erp_dashboard():
 def admin():
     from .auth import list_users
     return render_template("admin.html", users=list_users(),
-                           user=session["user"])
+                           user=g.current_user)
 
 
 @app.route("/admin/add", methods=["POST"])
@@ -1058,6 +1149,243 @@ def api_lp_solve():
             "variables_count": n,
             "constraints_count": len(ineq) + len(eq),
         }), 422
+
+
+# ── Sprint 13: API discovery ──────────────────────────────────────────────────
+
+_API_ENDPOINTS = [
+    {"method": "GET",  "path": "/api/v1",                    "auth_required": False,
+     "description": "List all API endpoints",
+     "query_params": [],
+     "content_type": "application/json",
+     "example_response": {"endpoints": []}},
+    {"method": "POST", "path": "/api/v1/token",              "auth_required": False,
+     "description": "Create a Bearer token. Body: {username, password}. Returns {token, expires_at} (ISO 8601 UTC). TTL is server-controlled (24h default). On 5xx, request is safe to retry — token was not created.",
+     "query_params": [],
+     "content_type": "application/json",
+     "example_response": {"token": "<hex>", "expires_at": "2026-07-11T10:00:00Z"}},
+    {"method": "DELETE","path": "/api/v1/token",             "auth_required": True,
+     "description": "Revoke a Bearer token. Header: Authorization: Bearer <token>.",
+     "query_params": [],
+     "content_type": "application/json",
+     "example_response": {"revoked": True}},
+    {"method": "GET",  "path": "/api/v1/export/payroll",     "auth_required": True,
+     "description": "Download payslips.xlsx. Content-Disposition: attachment; filename=\"payroll_{period}.xlsx\"",
+     "query_params": ["period (YYYY-MM, required)", "lang (en|ru|uk, default en)"],
+     "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+     "example_response": "<binary xlsx>"},
+    {"method": "GET",  "path": "/api/v1/export/budget",      "auth_required": True,
+     "description": "Download budget.xlsx. utilization_% is null when allocated=0.",
+     "query_params": ["period (YYYY-MM, required)", "lang (en|ru|uk, default en)"],
+     "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+     "example_response": "<binary xlsx>"},
+    {"method": "GET",  "path": "/api/v1/export/org",         "auth_required": True,
+     "description": "Download org_chart.pdf. Returns 503 if reportlab is not installed.",
+     "query_params": [],
+     "content_type": "application/pdf",
+     "example_response": "<binary pdf>"},
+    {"method": "POST", "path": "/api/v1/scripts/save",       "auth_required": True,
+     "description": "Save a .1s script. Body: {name, code}. Name must match [a-zA-Z0-9_-]+\\.1s. Returns 409 on name collision.",
+     "query_params": [],
+     "content_type": "application/json",
+     "example_response": {"saved": "my_script.1s"}},
+    {"method": "GET",  "path": "/api/v1/scripts/user",       "auth_required": True,
+     "description": "List the current user's saved scripts.",
+     "query_params": [],
+     "content_type": "application/json",
+     "example_response": {"scripts": ["my_script.1s"]}},
+    {"method": "DELETE","path": "/api/v1/scripts/<name>",    "auth_required": True,
+     "description": "Delete a saved script by name.",
+     "query_params": [],
+     "content_type": "application/json",
+     "example_response": {"deleted": "my_script.1s"}},
+]
+
+# Python Bearer auth example (included in discovery)
+_BEARER_EXAMPLE = (
+    "import requests\n"
+    "r = requests.post('/api/v1/token', json={'username':'admin','password':'admin'})\n"
+    "token = r.json()['token']\n"
+    "headers = {'Authorization': f'Bearer {token}'}\n"
+    "data = requests.get('/api/v1/export/payroll?period=2026-06', headers=headers)"
+)
+
+@app.route("/api/v1")
+def api_discovery():
+    return jsonify({
+        "version": "v1",
+        "endpoints": _API_ENDPOINTS,
+        "auth_example_python": _BEARER_EXAMPLE,
+    })
+
+
+# ── Sprint 13: Token auth endpoints ──────────────────────────────────────────
+
+@app.route("/api/v1/token", methods=["POST"])
+def api_create_token():
+    ip = request.remote_addr or "unknown"
+    if not _check_rate_limit(ip):
+        return jsonify({"error": "rate_limited", "hint": "Too many attempts. Try again in 60 seconds."}), 429
+    data = request.get_json(silent=True) or {}
+    username = data.get("username", "")
+    password = data.get("password", "")
+    from .auth import verify as _verify_user
+    user = _verify_user(username, password)
+    # Identical hint regardless of whether user exists or password is wrong (no enumeration)
+    if not user:
+        return jsonify({"error": "invalid_credentials", "hint": "Invalid username or password"}), 401
+    result = _token_store.create(user["username"], role=user.get("role", "user"))
+    return jsonify(result), 200
+
+
+@app.route("/api/v1/token", methods=["DELETE"])
+@login_required
+def api_revoke_token():
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return jsonify({"error": "no_token", "hint": "Send Authorization: Bearer <token>"}), 400
+    raw = auth[7:]
+    revoked = _token_store.revoke(raw)
+    return jsonify({"revoked": revoked}), 200
+
+
+# ── Sprint 13: Export endpoints ───────────────────────────────────────────────
+
+@app.route("/api/v1/export/payroll")
+@login_required
+def api_export_payroll():
+    period = request.args.get("period", "")
+    if not period:
+        return jsonify({"error": "missing_param", "hint": "Provide ?period=YYYY-MM"}), 400
+    lang = request.args.get("lang", "en")
+    try:
+        data = PayrollExporter(_ERP_DB_S13, period, lang).export()
+    except FileNotFoundError as e:
+        return jsonify({"error": "db_not_found", "message": str(e)}), 503
+    return send_file(
+        _io.BytesIO(data),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"payroll_{period}.xlsx",
+    )
+
+
+@app.route("/api/v1/export/budget")
+@login_required
+def api_export_budget():
+    period = request.args.get("period", "")
+    if not period:
+        return jsonify({"error": "missing_param", "hint": "Provide ?period=YYYY-MM"}), 400
+    lang = request.args.get("lang", "en")
+    try:
+        data = BudgetExporter(_ERP_DB_S13, period, lang).export()
+    except FileNotFoundError as e:
+        return jsonify({"error": "db_not_found", "message": str(e)}), 503
+    return send_file(
+        _io.BytesIO(data),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"budget_{period}.xlsx",
+    )
+
+
+@app.route("/api/v1/export/org")
+@login_required
+def api_export_org():
+    try:
+        data = OrgPdfExporter(_ERP_DB_S13).export()
+    except ImportError as e:
+        return jsonify({"error": "dependency_missing", "message": str(e)}), 503
+    except FileNotFoundError as e:
+        return jsonify({"error": "db_not_found", "message": str(e)}), 503
+    return send_file(
+        _io.BytesIO(data),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="org_chart.pdf",
+    )
+
+
+# ── Sprint 13: User script persistence ───────────────────────────────────────
+
+_SCRIPT_NAME_RE = _re.compile(r'^[a-zA-Z0-9_-]+\.1s$')
+
+
+def _script_dir(username: str) -> Path:
+    d = _USER_SCRIPTS_DIR / username
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _current_username() -> str:
+    if hasattr(g, "current_user"):
+        return g.current_user.get("user") or g.current_user.get("username", "unknown")
+    return session.get("user", {}).get("username", "unknown")
+
+
+@app.route("/api/v1/scripts/save", methods=["POST"])
+@login_required
+def api_scripts_save():
+    data = request.get_json(silent=True) or {}
+    name = data.get("name", "")
+    code = data.get("code", "")
+    # Validate name with fullmatch BEFORE any Path construction
+    if not _SCRIPT_NAME_RE.fullmatch(name):
+        return jsonify({"error": "invalid_name",
+                        "hint": "Name must match [a-zA-Z0-9_-]+.1s"}), 400
+    username = _current_username()
+    d = _script_dir(username)
+    # Per-user limit: 50 scripts max
+    existing = list(d.glob("*.1s"))
+    path = d / name
+    if len(existing) >= 50 and not path.exists():
+        return jsonify({"error": "quota_exceeded",
+                        "hint": "Maximum 50 saved scripts per user. Delete some to save more."}), 400
+    # 409 on collision (don't silently overwrite)
+    if path.exists():
+        return jsonify({"error": "name_conflict",
+                        "hint": f"{name} already exists. Delete it first or choose a different name."}), 409
+    path.write_text(code, encoding="utf-8")
+    return jsonify({"saved": name}), 201
+
+
+@app.route("/api/v1/scripts/save/<name>", methods=["PUT"])
+@login_required
+def api_scripts_overwrite(name: str):
+    """Overwrite an existing script (Save, not Save-as-new)."""
+    if not _SCRIPT_NAME_RE.fullmatch(name):
+        return jsonify({"error": "invalid_name",
+                        "hint": "Name must match [a-zA-Z0-9_-]+.1s"}), 400
+    data = request.get_json(silent=True) or {}
+    code = data.get("code", "")
+    username = _current_username()
+    path = _script_dir(username) / name
+    if not path.exists():
+        return jsonify({"error": "not_found", "hint": f"{name} does not exist. Use POST to create."}), 404
+    path.write_text(code, encoding="utf-8")
+    return jsonify({"saved": name}), 200
+
+
+@app.route("/api/v1/scripts/user")
+@login_required
+def api_scripts_list():
+    username = _current_username()
+    d = _script_dir(username)
+    scripts = sorted(p.name for p in d.glob("*.1s"))
+    return jsonify({"scripts": scripts}), 200
+
+
+@app.route("/api/v1/scripts/<name>", methods=["DELETE"])
+@login_required
+def api_scripts_delete(name: str):
+    if not _SCRIPT_NAME_RE.fullmatch(name):
+        return jsonify({"error": "invalid_name"}), 400
+    username = _current_username()
+    path = _script_dir(username) / name
+    if not path.exists():
+        return jsonify({"error": "not_found"}), 404
+    path.unlink()
+    return jsonify({"deleted": name}), 200
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
