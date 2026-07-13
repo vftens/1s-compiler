@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}Financial Reports — 1S: ERP Free Edition{% endblock %}
+
+{% block extra_head %}
+<style>
+.rpt-header{display:flex;align-items:center;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+.rpt-header h1{font-size:20px;font-weight:700;color:var(--blue-dark);flex:1}
+.period-form{display:flex;align-items:center;gap:8px}
+.period-form label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase}
+.period-input{padding:6px 10px;border:1px solid var(--border);border-radius:5px;
+              font-size:13px;font-family:monospace;width:110px}
+.period-input:focus{outline:none;border-color:var(--blue-mid)}
+.btn-load{padding:6px 14px;background:var(--blue-mid);color:#fff;border:none;
+          border-radius:5px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-load:hover{opacity:.88}
+
+/* Tabs */
+.rpt-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px}
+.rpt-tab{padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;
+         border:none;background:none;color:var(--text-muted);
+         border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s}
+.rpt-tab:hover{color:var(--blue-dark)}
+.rpt-tab.active{color:var(--blue-mid);border-bottom-color:var(--blue-mid)}
+
+/* Panel */
+.rpt-panel{display:none}
+.rpt-panel.active{display:block}
+
+/* KPI row */
+.kpi-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.kpi-card{flex:1;min-width:140px;background:#f0f4fb;border-radius:7px;
+          padding:14px 16px;border-left:3px solid var(--blue-mid)}
+.kpi-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px}
+.kpi-value{font-size:20px;font-weight:700;color:var(--blue-dark);font-family:monospace}
+.kpi-balanced{border-left-color:#2e7d32}
+.kpi-imbalanced{border-left-color:#c62828}
+
+/* Export buttons */
+.export-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.btn-export{padding:6px 14px;border-radius:5px;font-size:12px;font-weight:600;
+            cursor:pointer;border:1px solid var(--border);background:#fff;
+            color:var(--blue-dark);transition:background .15s}
+.btn-export:hover:not(:disabled){background:#f0f4fb;border-color:var(--blue-mid)}
+.btn-export:disabled{opacity:.45;cursor:default}
+
+/* Table */
+.rpt-table-wrap{overflow-x:auto}
+.rpt-table{width:100%;border-collapse:collapse;font-size:12px}
+.rpt-table th{padding:7px 10px;background:#f5f5f5;color:var(--text-muted);
+              font-weight:600;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap}
+.rpt-table td{padding:7px 10px;border-bottom:1px solid var(--border)}
+.rpt-table tr:hover td{background:#f9f9f9}
+.num{text-align:right;font-family:monospace}
+.rpt-total td{font-weight:700;background:#f0f4fb}
+
+/* States */
+.state-loading{display:flex;align-items:center;gap:8px;
+               color:var(--text-muted);font-size:13px;padding:20px 0}
+.spinner{width:16px;height:16px;border:2px solid var(--border);
+         border-top-color:var(--blue-mid);border-radius:50%;
+         animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.state-error{color:var(--danger);font-size:13px;padding:16px 0}
+.state-empty{color:var(--text-muted);font-size:13px;padding:16px 0;font-style:italic}
+
+/* Balance check */
+.badge-balanced{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+                border-radius:10px;font-size:11px;font-weight:700;
+                background:#e8f5e9;color:#2e7d32}
+.badge-imbalanced{background:#ffebee;color:#c62828}
+
+/* IS lines */
+.is-subtotal td{border-top:2px solid var(--border);font-weight:700}
+.is-section td:first-child{padding-left:20px;color:var(--text-muted)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rpt-header">
+  <h1>&#128196; Financial Reports</h1>
+  <form class="period-form" id="periodForm">
+    <label for="periodInput">Period</label>
+    <input type="text" id="periodInput" class="period-input"
+           placeholder="2026-07" maxlength="7"
+           value="{{ period or '' }}" pattern="\d{4}-(0[1-9]|1[0-2])">
+    <button type="submit" class="btn-load">Load</button>
+  </form>
+</div>
+
+<div class="rpt-tabs">
+  <button class="rpt-tab active" onclick="showTab('tb')">Trial Balance</button>
+  <button class="rpt-tab"        onclick="showTab('bs')">Balance Sheet</button>
+  <button class="rpt-tab"        onclick="showTab('is')">Income Statement</button>
+</div>
+
+<!-- Trial Balance -->
+<div class="rpt-panel active" id="panel-tb">
+  <div class="kpi-row" id="tb-kpis"></div>
+  <div class="export-row">
+    <button class="btn-export" id="tb-xlsx" disabled onclick="exportReport('trial-balance','xlsx')">&#128196; Excel</button>
+    <button class="btn-export" id="tb-pdf"  disabled onclick="exportReport('trial-balance','pdf')">&#128196; PDF</button>
+  </div>
+  <div id="tb-content"><div class="state-empty">Enter a period above and click Load.</div></div>
+</div>
+
+<!-- Balance Sheet -->
+<div class="rpt-panel" id="panel-bs">
+  <div class="kpi-row" id="bs-kpis"></div>
+  <div class="export-row">
+    <button class="btn-export" id="bs-xlsx" disabled onclick="exportReport('balance-sheet','xlsx')">&#128196; Excel</button>
+    <button class="btn-export" id="bs-pdf"  disabled onclick="exportReport('balance-sheet','pdf')">&#128196; PDF</button>
+  </div>
+  <div id="bs-content"><div class="state-empty">Enter a period above and click Load.</div></div>
+</div>
+
+<!-- Income Statement -->
+<div class="rpt-panel" id="panel-is">
+  <div class="kpi-row" id="is-kpis"></div>
+  <div class="export-row">
+    <select id="is-mode" style="padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px">
+      <option value="monthly">Monthly</option>
+      <option value="ytd">Year-to-date (YTD)</option>
+    </select>
+    <button class="btn-export" id="is-xlsx" disabled onclick="exportReport('income-statement','xlsx')">&#128196; Excel</button>
+    <button class="btn-export" id="is-pdf"  disabled onclick="exportReport('income-statement','pdf')">&#128196; PDF</button>
+  </div>
+  <div id="is-content"><div class="state-empty">Enter a period above and click Load.</div></div>
+</div>
+
+<script>
+var _period = '';
+
+function showTab(name) {
+  document.querySelectorAll('.rpt-tab').forEach(function(t,i){
+    t.classList.toggle('active', ['tb','bs','is'][i] === name);
+  });
+  document.querySelectorAll('.rpt-panel').forEach(function(p){
+    p.classList.remove('active');
+  });
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+document.getElementById('periodForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var val = document.getElementById('periodInput').value.trim();
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(val)) {
+    alert('Invalid period. Expected YYYY-MM with month 01-12, e.g. 2026-07');
+    return;
+  }
+  _period = val;
+  loadAll();
+});
+
+{% if period %}
+_period = '{{ period }}';
+document.addEventListener('DOMContentLoaded', function(){ if(_period) loadAll(); });
+{% endif %}
+
+function loadAll() {
+  loadReport('trial-balance');
+  loadReport('balance-sheet');
+  loadReport('income-statement');
+}
+
+function apiPath(report) {
+  var base = '/api/v1/reports/' + report + '?period=' + encodeURIComponent(_period) + '&format=json';
+  if (report === 'income-statement') {
+    base += '&period_mode=' + document.getElementById('is-mode').value;
+  }
+  return base;
+}
+
+function loading(id) {
+  document.getElementById(id).innerHTML =
+    '<div class="state-loading"><span class="spinner"></span> Loading...</div>';
+}
+
+function setExport(prefix, enabled) {
+  ['xlsx','pdf'].forEach(function(fmt){
+    document.getElementById(prefix + '-' + fmt).disabled = !enabled;
+  });
+}
+
+function fmt(n) {
+  if (n === null || n === undefined) return '—';
+  return Number(n).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function loadReport(report) {
+  var prefix = {'trial-balance':'tb','balance-sheet':'bs','income-statement':'is'}[report];
+  loading(prefix + '-content');
+  fetch(apiPath(report), {headers:{'Accept':'application/json'}})
+    .then(function(r){ return r.json(); })
+    .then(function(data){ renderReport(report, prefix, data); })
+    .catch(function(err){
+      document.getElementById(prefix+'-content').innerHTML =
+        '<div class="state-error">Error loading report: ' + err + '</div>';
+      setExport(prefix, false);
+    });
+}
+
+function renderReport(report, prefix, data) {
+  setExport(prefix, true);
+  if (report === 'trial-balance') renderTB(data);
+  else if (report === 'balance-sheet') renderBS(data);
+  else renderIS(data);
+}
+
+function renderTB(data) {
+  var kpis = document.getElementById('tb-kpis');
+  var int = data.integrity || {};
+  var bal = int.balanced;
+  kpis.innerHTML =
+    '<div class="kpi-card"><div class="kpi-label">Total Debit</div><div class="kpi-value">' + fmt(data.totals&&data.totals.total_debit) + '</div></div>' +
+    '<div class="kpi-card"><div class="kpi-label">Total Credit</div><div class="kpi-value">' + fmt(data.totals&&data.totals.total_credit) + '</div></div>' +
+    '<div class="kpi-card ' + (bal?'kpi-balanced':'kpi-imbalanced') + '"><div class="kpi-label">Status</div>' +
+    '<div class="kpi-value" style="font-size:14px"><span class="badge-' + (bal?'balanced':'imbalanced') + '">' +
+    (bal ? '&#10003; Balanced' : '&#9888; Imbalanced') + '</span></div></div>';
+
+  var rows = data.rows || [];
+  if (!rows.length) {
+    document.getElementById('tb-content').innerHTML =
+      '<div class="state-empty">No accounting data for ' + _period + '</div>';
+    return;
+  }
+  var html = '<div class="rpt-table-wrap"><table class="rpt-table"><thead><tr>' +
+    '<th>Account</th><th>Name</th><th class="num">Open Dr</th><th class="num">Open Cr</th>' +
+    '<th class="num">Period Dr</th><th class="num">Period Cr</th>' +
+    '<th class="num">Closing Dr</th><th class="num">Closing Cr</th>' +
+    '</tr></thead><tbody>';
+  rows.forEach(function(r){
+    html += '<tr><td>' + r.account_code + '</td><td>' + r.account_name + '</td>' +
+      '<td class="num">' + fmt(r.opening_debit) + '</td>' +
+      '<td class="num">' + fmt(r.opening_credit) + '</td>' +
+      '<td class="num">' + fmt(r.period_debit) + '</td>' +
+      '<td class="num">' + fmt(r.period_credit) + '</td>' +
+      '<td class="num">' + fmt(r.closing_debit) + '</td>' +
+      '<td class="num">' + fmt(r.closing_credit) + '</td></tr>';
+  });
+  var t = data.totals || {};
+  html += '</tbody><tfoot><tr class="rpt-total">' +
+    '<td colspan="4">Total</td>' +
+    '<td class="num">' + fmt(t.total_debit) + '</td>' +
+    '<td class="num">' + fmt(t.total_credit) + '</td>' +
+    '<td colspan="2"></td></tr></tfoot></table></div>';
+  document.getElementById('tb-content').innerHTML = html;
+}
+
+function renderBS(data) {
+  var kpis = document.getElementById('bs-kpis');
+  var t = data.totals || {};
+  var diff = (data.balance_check || {}).difference || 0;
+  kpis.innerHTML =
+    '<div class="kpi-card"><div class="kpi-label">Total Assets</div><div class="kpi-value">' + fmt(t.total_assets) + '</div></div>' +
+    '<div class="kpi-card"><div class="kpi-label">Liabilities + Equity</div><div class="kpi-value">' + fmt(t.total_liabilities_equity) + '</div></div>' +
+    (diff ? '<div class="kpi-card kpi-imbalanced"><div class="kpi-label">Difference</div><div class="kpi-value">' + fmt(diff) + '</div></div>' : '');
+
+  var s = data.sections || {};
+  var rows = [
+    ['Current Assets', s.current_assets],
+    ['Non-current Assets', s.fixed_assets],
+    ['Total Assets', t.total_assets, true],
+    ['Current Liabilities', s.current_liabilities],
+    ['Long-term Liabilities', s.long_term_liabilities],
+    ['Equity', s.equity],
+    ['Total Liabilities + Equity', t.total_liabilities_equity, true],
+  ];
+  if (!Object.values(s).some(function(v){return v&&v!==0;})) {
+    document.getElementById('bs-content').innerHTML =
+      '<div class="state-empty">No accounting data for ' + _period + '</div>';
+    return;
+  }
+  var html = '<div class="rpt-table-wrap"><table class="rpt-table"><thead><tr>' +
+    '<th>Section</th><th class="num">Amount</th></tr></thead><tbody>';
+  rows.forEach(function(row){
+    html += '<tr' + (row[2]?' class="rpt-total"':'') + '>' +
+      '<td>' + row[0] + '</td><td class="num">' + fmt(row[1]) + '</td></tr>';
+  });
+  if (diff) {
+    html += '<tr><td>Difference (imbalance)</td><td class="num">' + fmt(diff) + '</td></tr>';
+  }
+  html += '</tbody></table></div>';
+  document.getElementById('bs-content').innerHTML = html;
+}
+
+function renderIS(data) {
+  var kpis = document.getElementById('is-kpis');
+  kpis.innerHTML =
+    '<div class="kpi-card"><div class="kpi-label">Revenue</div><div class="kpi-value">' + fmt(data.revenue) + '</div></div>' +
+    '<div class="kpi-card"><div class="kpi-label">Gross Profit</div><div class="kpi-value">' + fmt(data.gross_profit) + '</div></div>' +
+    '<div class="kpi-card ' + (data.net_profit>=0?'kpi-balanced':'kpi-imbalanced') + '"><div class="kpi-label">Net Profit</div><div class="kpi-value">' + fmt(data.net_profit) + '</div></div>';
+
+  var lines = [
+    ['Revenue',             data.revenue,           false],
+    ['Cost of Goods Sold', -data.cogs,               true],
+    ['Gross Profit',        data.gross_profit,       false, true],
+    ['Operating Expenses', -data.operating_expenses, true],
+    ['Payroll Expenses',   -data.payroll,            true],
+    ['Operating Profit',    data.operating_profit,   false, true],
+    ['Other Income/Expense',data.other,              false],
+    ['Net Profit / (Loss)', data.net_profit,         false, true],
+  ];
+  var html = '<div class="rpt-table-wrap"><table class="rpt-table"><thead><tr>' +
+    '<th>Line Item</th><th class="num">Amount</th></tr></thead><tbody>';
+  lines.forEach(function(l){
+    html += '<tr' + (l[3]?' class="is-subtotal"':'') + '>' +
+      '<td' + (l[2]?' style="padding-left:24px;color:var(--text-muted)"':'') + '>' + l[0] + '</td>' +
+      '<td class="num">' + fmt(l[1]) + '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('is-content').innerHTML = html;
+}
+
+function exportReport(report, fmt_type) {
+  var url = '/api/v1/reports/' + report + '?period=' + encodeURIComponent(_period) +
+    '&format=' + fmt_type;
+  if (report === 'income-statement') {
+    url += '&period_mode=' + document.getElementById('is-mode').value;
+  }
+  window.location.href = url;
+}
+
+document.getElementById('is-mode').addEventListener('change', function(){
+  if (_period) loadReport('income-statement');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,82 @@
+# Chart of accounts mapping for financial reports.
+# Maps account code prefixes to financial statement buckets.
+# Follows UA П(С)БО account class structure (also compatible with RU chart of accounts).
+#
+# bucket values: current_assets | fixed_assets | current_liabilities
+#                long_term_liabilities | equity | revenue | cogs | operating_expenses | other
+
+accounts:
+  # Class 1 — Non-current (fixed) assets
+  "10": fixed_assets   # Property, plant, equipment
+  "11": fixed_assets   # Other non-current assets
+  "12": fixed_assets   # Intangible assets
+  "13": fixed_assets   # Depreciation (contra — handled in report logic)
+  "14": fixed_assets   # Long-term financial investments
+  "15": fixed_assets   # Capital investments
+
+  # Class 2 — Inventories
+  "20": current_assets  # Raw materials
+  "21": current_assets  # Semi-finished goods
+  "22": current_assets  # Low-value items
+  "25": current_assets  # Finished goods
+  "26": current_assets  # Finished products
+  "28": current_assets  # Goods for sale
+
+  # Class 3 — Cash and short-term investments
+  "30": current_assets  # Cash on hand
+  "31": current_assets  # Cash at bank
+  "33": current_assets  # Short-term investments
+  "34": current_assets  # Short-term promissory notes
+  "35": current_assets  # Short-term financial investments
+  "36": current_assets  # Trade receivables
+  "37": current_assets  # Other current receivables
+
+  # Class 4 — Equity
+  "40": equity          # Share capital
+  "41": equity          # Share premium
+  "42": equity          # Additional capital
+  "43": equity          # Reserve capital
+  "44": equity          # Retained earnings / accumulated loss
+
+  # Class 5 — Long-term liabilities
+  "50": long_term_liabilities  # Long-term loans
+  "51": long_term_liabilities  # Long-term bonds payable
+  "52": long_term_liabilities  # Long-term promissory notes
+  "53": long_term_liabilities  # Long-term liabilities for lease
+  "55": long_term_liabilities  # Other long-term liabilities
+
+  # Class 6 — Current liabilities
+  "60": current_liabilities  # Short-term loans
+  "61": current_liabilities  # Current portion of long-term liabilities
+  "62": current_liabilities  # Trade payables
+  "63": current_liabilities  # Accounts payable to suppliers
+  "64": current_liabilities  # Tax liabilities payable
+  "65": current_liabilities  # Insurance liabilities (ESV / payroll tax)
+  "66": current_liabilities  # Accrued payroll
+  "67": current_liabilities  # Dividends payable
+  "68": current_liabilities  # Other current liabilities
+
+  # Class 7 — Revenue
+  "70": revenue         # Sales revenue
+  "71": revenue         # Other operating income
+  "72": revenue         # Financial income
+  "73": revenue         # Other income
+  "74": revenue         # Extraordinary income
+
+  # Class 8 — Expenses by nature
+  "80": operating_expenses  # Materials
+  "81": operating_expenses  # Labour
+  "82": operating_expenses  # Depreciation
+  "83": operating_expenses  # Other operating expenses
+
+  # Class 9 — Expenses by function
+  "90": cogs                # Cost of goods sold
+  "91": operating_expenses  # General production overhead
+  "92": operating_expenses  # Administrative expenses
+  "93": operating_expenses  # Sales / distribution expenses
+  "94": operating_expenses  # Other operating expenses
+  "95": operating_expenses  # Financial expenses
+  "96": operating_expenses  # Loss from investments
+  "97": operating_expenses  # Other expenses
+  "98": operating_expenses  # Tax on profit
+  "99": operating_expenses  # Extraordinary expenses

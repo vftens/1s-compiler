@@ -1,0 +1,31 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.2, pytest-9.0.3, pluggy-1.6.0 -- C:\Python314\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\DrVITAL\1s-compiler
+configfile: pyproject.toml
+plugins: anyio-4.12.1
+collecting ... collected 21 items
+
+tests/test_sprint16.py::TestRegisterDemoScripts::test_register_adds_lp_scripts PASSED [  4%]
+tests/test_sprint16.py::TestRegisterDemoScripts::test_register_infers_title_from_filename PASSED [  9%]
+tests/test_sprint16.py::TestRegisterDemoScripts::test_register_does_not_overwrite_existing PASSED [ 14%]
+tests/test_sprint16.py::TestDemoRoute::test_demo_200_logged_in PASSED    [ 19%]
+tests/test_sprint16.py::TestDemoRoute::test_demo_redirects_anonymous PASSED [ 23%]
+tests/test_sprint16.py::TestDemoRoute::test_demo_has_expected_categories PASSED [ 28%]
+tests/test_sprint16.py::TestStreamGuard::test_stream_unknown_name_returns_404 PASSED [ 33%]
+tests/test_sprint16.py::TestStreamGuard::test_stream_path_traversal_returns_404 PASSED [ 38%]
+tests/test_sprint16.py::TestStreamGuard::test_stream_registered_script_ends_with_done PASSED [ 42%]
+tests/test_sprint16.py::TestAutoSeed::test_check_seed_needed_true_when_empty PASSED [ 47%]
+tests/test_sprint16.py::TestAutoSeed::test_check_seed_needed_false_when_rows PASSED [ 52%]
+tests/test_sprint16.py::TestAutoSeed::test_check_seed_needed_false_on_exception PASSED [ 57%]
+tests/test_sprint16.py::TestAutoSeed::test_seed_state_pending_at_module_load PASSED [ 61%]
+tests/test_sprint16.py::TestAutoSeed::test_seed_runs_when_db_empty PASSED [ 66%]
+tests/test_sprint16.py::TestAutoSeed::test_seed_skips_when_db_has_rows PASSED [ 71%]
+tests/test_sprint16.py::TestAutoSeed::test_seed_state_ready_on_success PASSED [ 76%]
+tests/test_sprint16.py::TestAutoSeed::test_seed_state_error_on_failure PASSED [ 80%]
+tests/test_sprint16.py::TestSeedIdempotency::test_seed_does_not_run_twice PASSED [ 85%]
+tests/test_sprint16.py::TestDashboardBanner::test_dashboard_banner_present PASSED [ 90%]
+tests/test_sprint16.py::TestDashboardBanner::test_dashboard_banner_links_to_demo PASSED [ 95%]
+tests/test_sprint16.py::TestApiSurface::test_api_scripts_includes_registered_demos PASSED [100%]
+
+============================= 21 passed in 1.57s ==============================

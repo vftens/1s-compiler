@@ -8,6 +8,8 @@ import sys
 import uuid
 import tempfile
 import subprocess
+import threading
+import logging
 from functools import wraps
 from pathlib import Path
 from flask import (Flask, render_template, request, redirect, url_for,
@@ -189,7 +191,129 @@ MODULE_ICONS = {
     "Бухгалтерия": "📒",
     "Торговля":    "🛒",
     "ЗУП":         "👥",
+    "LP Solver":   "📐",
+    "Demo":        "🎬",
 }
+
+# ── Sprint 16: Demo categories (ordered) ─────────────────────────────────────
+
+DEMO_CATEGORIES: dict[str, list[str]] = {
+    "LP Solver":     ["demo_lp_"],
+    "ERP Full Cycle":["demo_erp_full_", "demo_erp_"],
+    "Reports":       ["demo_reports_", "demo_accounting_"],
+    "Payroll":       ["demo_payroll_", "demo_zup_"],
+    "Other Demos":   ["demo_breakeven_", "demo_construction_", "demo_manufacturing_",
+                      "demo_persistence_", "demo_trade_", "demo_vat_balance_",
+                      "demo_workflow_", "demo_cython_", "demo_planning_"],
+}
+
+_LANG_LABELS = {"en": "EN", "ru": "RU", "uk": "UA"}
+
+# ── Sprint 17: Ordered curated run-all list ───────────────────────────────────
+# Pure list constant — no I/O; defined after SCRIPTS so tests can import directly.
+RUN_ALL_SCRIPTS: list[str] = [
+    "demo_lp_solver_en",
+    "demo_erp_full_en",
+    "demo_reports_en",
+]
+
+
+def _register_demo_scripts() -> None:
+    """Glob EXAMPLES/demo_*.1s and add any missing entries to SCRIPTS."""
+    for path in sorted(EXAMPLES.glob("demo_*.1s")):
+        name = path.stem
+        if name in SCRIPTS:
+            continue
+        parts = name.split("_")
+        lang_suffix = parts[-1] if parts[-1] in _LANG_LABELS else ""
+        core_parts = parts[1:-1] if lang_suffix else parts[1:]
+        title_words = [w.capitalize() for w in core_parts]
+        lang_label = _LANG_LABELS.get(lang_suffix, "")
+        title = " ".join(title_words) + (f" ({lang_label})" if lang_label else "")
+
+        module = "Demo"
+        for cat, prefixes in DEMO_CATEGORIES.items():
+            if any(name.startswith(p) for p in prefixes):
+                module = cat
+                break
+
+        SCRIPTS[name] = {"title": title, "module": module, "desc": ""}
+
+
+# ── Sprint 16: Auto-seed state ────────────────────────────────────────────────
+
+_seed_state: str = "pending"
+_seed_lock: threading.Lock = threading.Lock()
+_seed_event: threading.Event = threading.Event()
+_log = logging.getLogger("1s.seed")
+
+
+def _check_seed_needed(db_path: Path) -> bool:
+    """Return True if erp.db has no budget_entries rows."""
+    import sqlite3
+    if not db_path.exists():
+        _log.info("[seed] data/erp.db not found — will seed on first run")
+        return True
+    try:
+        with sqlite3.connect(str(db_path)) as conn:
+            cur = conn.execute("SELECT COUNT(*) FROM budget_entries")
+            return cur.fetchone()[0] == 0
+    except Exception as exc:
+        _log.warning("[seed] Could not read erp.db (%s) — skipping auto-seed", exc)
+        return False
+
+
+def _run_seed_subprocess() -> None:
+    global _seed_state
+    script = EXAMPLES / "demo_erp_full_en.1s"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT)
+    env["PYTHONUTF8"] = "1"
+    _log.info("[seed] Seeding demo data from demo_erp_full_en.1s (background)…")
+    with _seed_lock:
+        _seed_state = "running"
+    try:
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "src.cli", "run", str(script)],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding="utf-8", errors="replace",
+            env=env, cwd=str(ROOT),
+        )
+        proc.wait()
+        if proc.returncode == 0:
+            with _seed_lock:
+                _seed_state = "ready"
+            _log.info("[seed] Demo data seeded successfully")
+        else:
+            with _seed_lock:
+                _seed_state = "error"
+            _log.error("[seed] Auto-seed failed (exit code %d); check examples/demo_erp_full_en.1s",
+                       proc.returncode)
+    except Exception as exc:
+        with _seed_lock:
+            _seed_state = "error"
+        _log.error("[seed] Auto-seed exception: %s", exc)
+    finally:
+        _seed_event.set()
+
+
+def _auto_seed_on_start(db_path: Path | None = None) -> None:
+    """Start background seed if erp.db is empty. Idempotent."""
+    global _seed_state
+    db = db_path or (ROOT / "data" / "erp.db")
+    with _seed_lock:
+        if _seed_state in ("running", "ready"):
+            return
+    _log.info("[seed] Checking if demo seed needed…")
+    if not _check_seed_needed(db):
+        _log.info("[seed] erp.db already has data — skipping auto-seed")
+        with _seed_lock:
+            _seed_state = "ready"
+        _seed_event.set()
+        return
+    t = threading.Thread(target=_run_seed_subprocess, daemon=True)
+    t.start()
+
 
 @app.before_request
 def auto_lang():
@@ -386,6 +510,11 @@ def run_script(name: str):
 @login_required
 def stream(name: str):
     """SSE endpoint — streams script output line-by-line."""
+    if name not in SCRIPTS:
+        if ".." in name or "/" in name:
+            _log.warning("[stream] Path traversal attempt blocked: %r", name)
+        from flask import abort
+        abort(404)
     script_path = EXAMPLES / f"{name}.1s"
 
     def generate():
@@ -1391,16 +1520,350 @@ def api_scripts_delete(name: str):
     return jsonify({"deleted": name}), 200
 
 
+# ── Sprint 15: Financial Reports ─────────────────────────────────────────────
+
+from .runtime.reports import TrialBalanceReport, BalanceSheetReport, IncomeStatement
+
+_PERIOD_RE_S15 = _re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+_VALID_FORMATS = {"json", "xlsx", "pdf"}
+_VALID_LANGS   = {"en", "ru", "uk"}
+
+# Add report endpoints to discovery
+_API_ENDPOINTS.extend([
+    {"method": "GET", "path": "/api/v1/reports",
+     "auth_required": True,
+     "description": "List available reports with last-run timestamps.",
+     "query_params": [],
+     "content_type": "application/json",
+     "example_response": {"reports": []}},
+    {"method": "GET", "path": "/api/v1/reports/trial-balance",
+     "auth_required": True,
+     "description": (
+         "Trial Balance (ОСВ). "
+         "JSON keys are always canonical English snake_case; "
+         "lang only affects xlsx/pdf column headers."
+     ),
+     "query_params": [
+         "period (YYYY-MM, required)",
+         "format (json|xlsx|pdf, default json)",
+         "lang (en|ru|uk, default en — xlsx/pdf headers only)",
+     ],
+     "content_type": "application/json | xlsx | pdf",
+     "example_response": {
+         "report": "trial-balance", "period": "2026-07",
+         "rows": [], "totals": {}, "integrity": {"balanced": True, "difference": 0},
+     }},
+    {"method": "GET", "path": "/api/v1/reports/balance-sheet",
+     "auth_required": True,
+     "description": "Balance Sheet. balance_check.difference=0 means balanced.",
+     "query_params": [
+         "period (YYYY-MM, required)",
+         "format (json|xlsx|pdf, default json)",
+         "lang (en|ru|uk, default en — xlsx/pdf headers only)",
+     ],
+     "content_type": "application/json | xlsx | pdf",
+     "example_response": {
+         "report": "balance-sheet", "period": "2026-07",
+         "sections": {}, "totals": {}, "balance_check": {"difference": 0},
+     }},
+    {"method": "GET", "path": "/api/v1/reports/income-statement",
+     "auth_required": True,
+     "description": "Income Statement / P&L. period_mode=ytd for year-to-date.",
+     "query_params": [
+         "period (YYYY-MM, required)",
+         "format (json|xlsx|pdf, default json)",
+         "lang (en|ru|uk, default en — xlsx/pdf headers only)",
+         "period_mode (monthly|ytd, default monthly)",
+     ],
+     "content_type": "application/json | xlsx | pdf",
+     "example_response": {
+         "report": "income-statement", "period": "2026-07",
+         "revenue": 0, "cogs": 0, "net_profit": 0,
+     }},
+])
+
+
+def _validate_report_params(period: str, fmt: str) -> tuple[bool, str, str]:
+    """Returns (ok, error_code, hint)."""
+    if not period:
+        return False, "missing_period", "Provide ?period=YYYY-MM, e.g. ?period=2026-07"
+    if not _PERIOD_RE_S15.match(period):
+        return False, "invalid_period", "Expected format: YYYY-MM with month 01-12, e.g. 2026-07"
+    if fmt not in _VALID_FORMATS:
+        return False, "invalid_format", "Supported formats: json, xlsx, pdf"
+    return True, "", ""
+
+
+def _send_xlsx(buf, filename: str, truncated: bool):
+    resp = send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename,
+    )
+    if truncated:
+        resp.headers["X-Truncated"] = "true"
+    return resp
+
+
+def _send_pdf(buf, filename: str, truncated: bool):
+    resp = send_file(buf, mimetype="application/pdf",
+                     as_attachment=True, download_name=filename)
+    if truncated:
+        resp.headers["X-Truncated"] = "true"
+    return resp
+
+
+def _json_report(data: dict):
+    resp = jsonify(data)
+    if data.get("truncated"):
+        resp.headers["X-Truncated"] = "true"
+    return resp
+
+
+@app.route("/api/v1/reports")
+@login_required
+def api_reports_index():
+    return jsonify({
+        "reports": [
+            {"name": "trial-balance",    "path": "/api/v1/reports/trial-balance"},
+            {"name": "balance-sheet",    "path": "/api/v1/reports/balance-sheet"},
+            {"name": "income-statement", "path": "/api/v1/reports/income-statement"},
+        ]
+    }), 200
+
+
+@app.route("/api/v1/reports/trial-balance")
+@login_required
+def api_report_trial_balance():
+    period = request.args.get("period", "")
+    fmt    = request.args.get("format", "json")
+    lang   = request.args.get("lang", "en")
+    if lang not in _VALID_LANGS:
+        lang = "en"
+    ok, err, hint = _validate_report_params(period, fmt)
+    if not ok:
+        return jsonify({"error": err, "hint": hint}), 400
+    try:
+        data = TrialBalanceReport.compute(period, _ERP_DB_S13)
+    except FileNotFoundError as e:
+        return jsonify({"error": "db_not_found",
+                        "hint": "Database not initialised. Start the server first."}), 503
+    if fmt == "json":
+        return _json_report(data)
+    if fmt == "xlsx":
+        buf = TrialBalanceReport.to_excel(data, lang)
+        return _send_xlsx(buf, f"trial_balance_{period}.xlsx", data.get("truncated", False))
+    try:
+        buf = TrialBalanceReport.to_pdf(data, lang)
+    except ImportError as e:
+        return jsonify({"error": "dependency_missing",
+                        "hint": "reportlab not installed. Run: pip install reportlab"}), 503
+    return _send_pdf(buf, f"trial_balance_{period}.pdf", data.get("truncated", False))
+
+
+@app.route("/api/v1/reports/balance-sheet")
+@login_required
+def api_report_balance_sheet():
+    period = request.args.get("period", "")
+    fmt    = request.args.get("format", "json")
+    lang   = request.args.get("lang", "en")
+    if lang not in _VALID_LANGS:
+        lang = "en"
+    ok, err, hint = _validate_report_params(period, fmt)
+    if not ok:
+        return jsonify({"error": err, "hint": hint}), 400
+    try:
+        data = BalanceSheetReport.compute(period, _ERP_DB_S13)
+    except FileNotFoundError:
+        return jsonify({"error": "db_not_found",
+                        "hint": "Database not initialised. Start the server first."}), 503
+    if fmt == "json":
+        return _json_report(data)
+    if fmt == "xlsx":
+        buf = BalanceSheetReport.to_excel(data, lang)
+        return _send_xlsx(buf, f"balance_sheet_{period}.xlsx", data.get("truncated", False))
+    try:
+        buf = BalanceSheetReport.to_pdf(data, lang)
+    except ImportError:
+        return jsonify({"error": "dependency_missing",
+                        "hint": "reportlab not installed. Run: pip install reportlab"}), 503
+    return _send_pdf(buf, f"balance_sheet_{period}.pdf", data.get("truncated", False))
+
+
+@app.route("/api/v1/reports/income-statement")
+@login_required
+def api_report_income_statement():
+    period      = request.args.get("period", "")
+    fmt         = request.args.get("format", "json")
+    lang        = request.args.get("lang", "en")
+    period_mode = request.args.get("period_mode", "monthly")
+    if lang not in _VALID_LANGS:
+        lang = "en"
+    if period_mode not in ("monthly", "ytd"):
+        period_mode = "monthly"
+    ok, err, hint = _validate_report_params(period, fmt)
+    if not ok:
+        return jsonify({"error": err, "hint": hint}), 400
+    try:
+        data = IncomeStatement.compute(period, _ERP_DB_S13, period_mode)
+    except FileNotFoundError:
+        return jsonify({"error": "db_not_found",
+                        "hint": "Database not initialised. Start the server first."}), 503
+    if fmt == "json":
+        return _json_report(data)
+    if fmt == "xlsx":
+        buf = IncomeStatement.to_excel(data, lang)
+        return _send_xlsx(buf, f"income_statement_{period}.xlsx", data.get("truncated", False))
+    try:
+        buf = IncomeStatement.to_pdf(data, lang)
+    except ImportError:
+        return jsonify({"error": "dependency_missing",
+                        "hint": "reportlab not installed. Run: pip install reportlab"}), 503
+    return _send_pdf(buf, f"income_statement_{period}.pdf", data.get("truncated", False))
+
+
+@app.route("/reports")
+@login_required
+def reports_dashboard():
+    period = request.args.get("period", "")
+    return render_template("reports.html",
+                           period=period,
+                           user=session.get("user", g.current_user
+                                            if hasattr(g, "current_user") else {}))
+
+
+# ── Sprint 16: Demo page + seed-state endpoint ────────────────────────────────
+
+def _build_demo_categories() -> list[dict]:
+    """Group registered demo_* scripts into ordered category buckets."""
+    cats: dict[str, list[dict]] = {k: [] for k in DEMO_CATEGORIES}
+    cats["Other Demos"] = cats.get("Other Demos", [])
+    uncategorised: list[dict] = []
+
+    for name, meta in SCRIPTS.items():
+        if not name.startswith("demo_"):
+            continue
+        entry = {"name": name, "title": meta["title"], "desc": meta.get("desc", "")}
+        placed = False
+        for cat, prefixes in DEMO_CATEGORIES.items():
+            if any(name.startswith(p) for p in prefixes):
+                cats.setdefault(cat, []).append(entry)
+                placed = True
+                break
+        if not placed:
+            uncategorised.append(entry)
+
+    result = []
+    for cat in DEMO_CATEGORIES:
+        entries = sorted(cats.get(cat, []), key=lambda x: x["name"])
+        if entries:
+            result.append({"label": cat, "scripts": entries})
+    if uncategorised:
+        result.append({"label": "Other", "scripts": sorted(uncategorised, key=lambda x: x["name"])})
+    return result
+
+
+@app.route("/demo")
+@login_required
+def demo_page():
+    categories = _build_demo_categories()
+    return render_template("demo.html",
+                           categories=categories,
+                           seed_state=_seed_state,
+                           user=session.get("user", {}))
+
+
+@app.route("/api/v1/seed-state")
+def api_seed_state():
+    return jsonify({"state": _seed_state})
+
+
+# ── Sprint 17: Run All chained SSE endpoint ──────────────────────────────────
+
+@app.route("/api/v1/demo/run-all")
+@login_required
+def api_demo_run_all():
+    """SSE endpoint — runs RUN_ALL_SCRIPTS sequentially, streams all output."""
+    total = len(RUN_ALL_SCRIPTS)
+
+    def generate():
+        for idx, name in enumerate(RUN_ALL_SCRIPTS, start=1):
+            header = f"── [{idx}/{total}] {name} " + "─" * max(0, 44 - len(name))
+            yield f"data: {header}\n\n"
+
+            script_path = EXAMPLES / f"{name}.1s"
+            if not script_path.exists():
+                yield f"data: [ERROR] {name}: script file not found\n\n"
+                continue
+
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(ROOT)
+            env["PYTHONUTF8"] = "1"
+            try:
+                proc = subprocess.Popen(
+                    [sys.executable, "-m", "src.cli", "run", str(script_path)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True, encoding="utf-8", errors="replace",
+                    env=env, cwd=str(ROOT),
+                )
+                for line in proc.stdout:
+                    yield f"data: {line.rstrip()}\n\n"
+                try:
+                    proc.wait(timeout=120)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+                    yield f"data: [ERROR] {name}: timed out after 120s\n\n"
+                    continue
+                if proc.returncode != 0:
+                    yield f"data: [ERROR] {name}: exit code {proc.returncode}\n\n"
+            except Exception as exc:
+                yield f"data: [ERROR] {name}: {exc}\n\n"
+
+        yield "data: __DONE__\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+_API_ENDPOINTS.extend([
+    {"method": "GET", "path": "/api/v1/demo/run-all",
+     "auth_required": True,
+     "description": (
+         "Stream all curated demo scripts sequentially as SSE. "
+         "Section headers emitted as ── [N/M] <name> ──. "
+         "Non-zero exit → [ERROR] line, continues to next script. "
+         "Ends with __DONE__."
+     ),
+     "query_params": [],
+     "content_type": "text/event-stream",
+     "example_response": "data: ── [1/3] demo_lp_solver_en ──…\ndata: __DONE__\n\n"},
+    {"method": "GET", "path": "/api/v1/seed-state",
+     "auth_required": False,
+     "description": "Current auto-seed state: pending|running|ready|error.",
+     "query_params": [],
+     "content_type": "application/json",
+     "example_response": {"state": "ready"}},
+])
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def run_server(host: str = "127.0.0.1", port: int = 5000, debug: bool = False):
     from .auth import _USERS_FILE, _bootstrap
+    _register_demo_scripts()
     if not _USERS_FILE.exists():
         _bootstrap()
         print(f"  Создан файл пользователей: {_USERS_FILE}")
         print("  Учётные записи по умолчанию:")
         print("    admin / admin  (роль: администратор)")
         print("    user  / user   (роль: пользователь)")
+    _auto_seed_on_start()
     print(f"\n  1S: ERP Free Edition — Web UI")
     print(f"  Открыть в браузере: http://{host}:{port}/\n")
     app.run(host=host, port=port, debug=debug, threaded=True)

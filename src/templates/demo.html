@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% block title %}Quick Demo — 1S: ERP Free Edition{% endblock %}
+
+{% block extra_head %}
+<style>
+.demo-page{display:flex;gap:24px;align-items:flex-start}
+.demo-sidebar{width:200px;flex-shrink:0;position:sticky;top:80px}
+.demo-sidebar ul{list-style:none;padding:0;margin:0}
+.demo-sidebar li a{display:block;padding:7px 12px;border-radius:6px;font-size:13px;
+  color:var(--text-muted);text-decoration:none;transition:background .15s,color .15s}
+.demo-sidebar li a:hover{background:var(--blue-light,#e3f2fd);color:var(--blue-mid)}
+.demo-sidebar li a.active{background:var(--blue-mid);color:#fff;font-weight:600}
+@media(max-width:680px){
+  .demo-page{flex-direction:column}
+  .demo-sidebar{width:100%;position:static}
+  .demo-sidebar ul{display:flex;flex-wrap:wrap;gap:6px}
+  .demo-sidebar li a{padding:5px 10px;border-radius:20px;border:1px solid var(--border)}
+}
+
+.demo-content{flex:1;min-width:0}
+.demo-section{margin-bottom:32px}
+.demo-section h2{font-size:15px;font-weight:700;color:var(--blue-dark);
+  margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--border)}
+.demo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+
+.demo-card{background:#fff;border-radius:8px;padding:18px;
+  box-shadow:0 1px 4px rgba(0,0,0,.1);border-top:3px solid var(--blue-mid);
+  display:flex;flex-direction:column;gap:8px}
+.demo-card-title{font-size:14px;font-weight:700;color:var(--blue-dark)}
+.demo-card-desc{font-size:12px;color:#546e7a;line-height:1.45;flex:1}
+.demo-card-name{font-size:11px;color:#90A4AE;font-family:monospace}
+.demo-card-footer{display:flex;align-items:center;justify-content:space-between;
+  padding-top:8px;border-top:1px solid var(--border)}
+.demo-run-btn{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;
+  background:var(--blue-mid);color:#fff;border:none;cursor:pointer;transition:background .15s}
+.demo-run-btn:hover{background:var(--blue-dark)}
+.demo-run-btn:disabled{background:#90A4AE;cursor:not-allowed}
+.demo-badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px}
+.demo-badge.running{background:#fff8e1;color:#f57f17}
+.demo-badge.done{background:#e8f5e9;color:#2e7d32}
+.demo-badge.error{background:#ffebee;color:#c62828}
+
+.demo-terminal-wrap{max-height:0;overflow:hidden;transition:max-height .3s ease;
+  background:#1e1e1e;border-radius:0 0 6px 6px;margin-top:2px}
+.demo-terminal-wrap.open{max-height:340px}
+.demo-terminal{padding:12px;font-size:12px;line-height:1.55;font-family:monospace;
+  color:#cdd3de;overflow-y:auto;max-height:320px;white-space:pre-wrap;word-break:break-all}
+.line-err{color:#ef9a9a}
+.line-sep{color:#546e7a}
+.line-head{color:#80cbc4;font-weight:bold}
+
+.seed-banner{padding:12px 18px;border-radius:6px;margin-bottom:20px;font-size:13px;
+  display:flex;align-items:center;gap:12px;border-left-width:4px;border-left-style:solid}
+.seed-banner.seeding{background:#fff8e1;border-color:#f9a825;color:#5d4037}
+.seed-banner.ready{background:#e8f5e9;border-color:#388e3c;color:#1b5e20}
+
+.page-subtitle{font-size:14px;color:var(--text-muted);margin:-4px 0 18px}
+.back-btn{font-size:13px;color:var(--text-muted);text-decoration:none;font-weight:500}
+.back-btn:hover{color:var(--blue-mid)}
+.page-title-row{display:flex;align-items:baseline;gap:16px;margin-bottom:4px}
+
+.run-all-strip{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;background:#fff;border-radius:8px;margin-bottom:16px;
+  box-shadow:0 1px 4px rgba(0,0,0,.1);border-left:4px solid var(--blue-mid)}
+.run-all-strip-text{font-size:13px;color:#546e7a}
+.run-all-strip-text strong{color:var(--blue-dark)}
+.run-all-btn{padding:8px 20px;border-radius:6px;font-size:13px;font-weight:700;
+  border:none;cursor:pointer;transition:background .15s,color .15s;min-width:160px}
+.run-all-btn.idle{background:var(--blue-mid);color:#fff}
+.run-all-btn.idle:hover{background:var(--blue-dark)}
+.run-all-btn.running{background:#f57f17;color:#fff;cursor:not-allowed}
+.run-all-btn.done{background:#388e3c;color:#fff}
+.run-all-btn.done:hover{background:#2e7d32}
+.run-all-btn.error{background:#c62828;color:#fff}
+.run-all-btn.error:hover{background:#b71c1c}
+
+.run-all-terminal-outer{margin-bottom:20px;border-radius:8px;overflow:hidden;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);display:none}
+.run-all-terminal-label{background:#111;padding:7px 14px;font-size:11px;
+  color:#546e7a;font-family:monospace;letter-spacing:.3px}
+.run-all-terminal{background:#1e1e1e;padding:14px;font-size:12px;line-height:1.55;
+  font-family:monospace;color:#cdd3de;overflow-y:auto;min-height:220px;
+  max-height:480px;white-space:pre-wrap;word-break:break-all}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title-row">
+  <div class="page-title" style="margin-bottom:0">🎬 Quick Demo</div>
+  <a href="{{ url_for('dashboard') }}" class="back-btn">← Dashboard</a>
+</div>
+<p class="page-subtitle">Run live LP Solver, ERP Full Cycle, and Reports demos directly in your browser. No configuration needed.</p>
+
+{% if seed_state == 'running' or seed_state == 'pending' %}
+<div class="seed-banner seeding">
+  <span>⟳</span>
+  <span>Initializing demo data in the background — demos can still run while seeding completes.</span>
+</div>
+{% elif seed_state == 'error' %}
+<div class="seed-banner" style="background:#ffebee;border-color:#c62828;color:#b71c1c">
+  <span>⚠</span>
+  <span>Auto-seed encountered an error. Demos may still work with existing data.</span>
+</div>
+{% endif %}
+
+<div class="run-all-strip">
+  <div class="run-all-strip-text">
+    <strong>Run All Demos</strong> — LP Solver → ERP Full Cycle → Reports, streamed live.
+  </div>
+  <button id="run-all-btn" class="run-all-btn idle" onclick="runAll()">▶ Run All Demos</button>
+</div>
+
+<div class="run-all-terminal-outer" id="run-all-outer">
+  <div class="run-all-terminal-label">▶ Run All — live output</div>
+  <div class="run-all-terminal" id="run-all-term"></div>
+</div>
+
+<div class="demo-page">
+  <nav class="demo-sidebar">
+    <ul>
+      {% for cat in categories %}
+      <li><a href="#cat-{{ loop.index }}" class="cat-anchor">{{ cat.label }}</a></li>
+      {% endfor %}
+    </ul>
+  </nav>
+
+  <div class="demo-content">
+    {% for cat in categories %}
+    <section class="demo-section" id="cat-{{ loop.index }}">
+      <h2>{{ cat.label }}</h2>
+      <div class="demo-grid">
+        {% for s in cat.scripts %}
+        <div class="demo-card" id="card-{{ s.name }}">
+          <div class="demo-card-title">{{ s.title }}</div>
+          {% if s.desc %}<div class="demo-card-desc">{{ s.desc }}</div>{% endif %}
+          <div class="demo-card-footer">
+            <span class="demo-card-name">{{ s.name }}.1s</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="demo-badge" id="badge-{{ s.name }}" style="display:none"></span>
+              <button class="demo-run-btn" id="btn-{{ s.name }}"
+                      onclick="runDemo('{{ s.name }}')">▶ Run</button>
+            </div>
+          </div>
+          <div class="demo-terminal-wrap" id="twrap-{{ s.name }}">
+            <div class="demo-terminal" id="term-{{ s.name }}"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+var _activeSource = null;
+var _activeCard = null;
+var _runAllSource = null;
+
+function esc(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function colorLine(s){
+  // Section header: ── [N/M] name ── (must check before generic separator)
+  if(/^── \[\d+\/\d+\]/.test(s))return'<span class="line-head">'+esc(s)+'</span>';
+  if(/^\[ERROR\]/.test(s))return'<span class="line-err">'+esc(s)+'</span>';
+  if(/^(ОШИБКА|ERROR|Ошибка|error|Error|ПОМИЛКА)/.test(s))return'<span class="line-err">'+esc(s)+'</span>';
+  if(/^[=─━]{3,}/.test(s)||/^---/.test(s))return'<span class="line-sep">'+esc(s)+'</span>';
+  if(/^(===|►|✓|✗|>>|==)/.test(s))return'<span class="line-head">'+esc(s)+'</span>';
+  return esc(s);
+}
+
+function stopRunAll(){
+  if(_runAllSource){
+    _runAllSource.close();
+    _runAllSource=null;
+  }
+  var btn=document.getElementById('run-all-btn');
+  if(btn){btn.className='run-all-btn idle';btn.textContent='▶ Run All Demos';btn.disabled=false;}
+}
+
+function runAll(){
+  stopRunAll();
+  if(_activeSource){_activeSource.close();_activeSource=null;}
+  var btn=document.getElementById('run-all-btn');
+  var outer=document.getElementById('run-all-outer');
+  var term=document.getElementById('run-all-term');
+  term.innerHTML='';
+  outer.style.display='block';
+  btn.className='run-all-btn running';
+  btn.textContent='⟳ Running… (1/3)';
+  btn.disabled=true;
+  var scriptNum=0;
+  _runAllSource=new EventSource('/api/v1/demo/run-all');
+  _runAllSource.onmessage=function(e){
+    if(e.data==='__DONE__'){
+      _runAllSource.close();_runAllSource=null;
+      btn.className='run-all-btn done';
+      btn.textContent='✓ Done — Run Again';
+      btn.disabled=false;
+      return;
+    }
+    if(/^── \[\d+\/\d+\]/.test(e.data)){
+      var m=e.data.match(/\[(\d+)\/(\d+)\]/);
+      if(m){scriptNum=parseInt(m[1]);btn.textContent='⟳ Running… ('+m[1]+'/'+m[2]+')';}
+    }
+    term.innerHTML+=colorLine(e.data)+'\n';
+    term.scrollTop=term.scrollHeight;
+  };
+  _runAllSource.onerror=function(){
+    _runAllSource.close();_runAllSource=null;
+    btn.className='run-all-btn error';
+    btn.textContent='⚠ Error — Run Again';
+    btn.disabled=false;
+    term.innerHTML+='<span class="line-err">[Connection lost]</span>\n';
+  };
+}
+
+function runDemo(name){
+  stopRunAll();
+  if(_activeSource){
+    _activeSource.close();
+    if(_activeCard && _activeCard !== name){
+      var ob=document.getElementById('twrap-'+_activeCard);
+      if(ob)ob.classList.remove('open');
+      setBadge(_activeCard,'done','Done');
+      var obtn=document.getElementById('btn-'+_activeCard);
+      if(obtn){obtn.disabled=false;obtn.textContent='▶ Run';}
+    }
+    _activeSource=null;
+  }
+  _activeCard=name;
+  var term=document.getElementById('term-'+name);
+  var wrap=document.getElementById('twrap-'+name);
+  var btn=document.getElementById('btn-'+name);
+  term.innerHTML='';
+  wrap.classList.add('open');
+  btn.disabled=true;btn.textContent='⟳';
+  setBadge(name,'running','Running…');
+  var lineCount=0;
+  _activeSource=new EventSource('/stream/'+name);
+  _activeSource.onmessage=function(e){
+    if(e.data==='__DONE__'){
+      _activeSource.close();_activeSource=null;
+      btn.disabled=false;btn.textContent='▶ Run';
+      setBadge(name,'done',lineCount+' lines');
+      return;
+    }
+    lineCount++;
+    term.innerHTML+=colorLine(e.data)+'\n';
+    term.scrollTop=term.scrollHeight;
+  };
+  _activeSource.onerror=function(){
+    _activeSource.close();_activeSource=null;
+    btn.disabled=false;btn.textContent='▶ Run';
+    setBadge(name,'error','Error — retry?');
+    term.innerHTML+='<span class="line-err">[Connection lost]</span>\n';
+  };
+  setTimeout(function(){
+    if(_activeSource&&_activeCard===name){
+      _activeSource.close();_activeSource=null;
+      btn.disabled=false;btn.textContent='▶ Run';
+      setBadge(name,'error','Timeout');
+      term.innerHTML+='<span class="line-err">[No response after 30s]</span>\n';
+    }
+  },30000);
+}
+
+function setBadge(name,cls,text){
+  var b=document.getElementById('badge-'+name);
+  if(!b)return;
+  b.className='demo-badge '+cls;
+  b.textContent=text;
+  b.style.display='';
+}
+
+// Sidebar active section tracking
+var anchors=document.querySelectorAll('.cat-anchor');
+var sections=document.querySelectorAll('.demo-section');
+window.addEventListener('scroll',function(){
+  var scrollY=window.scrollY+120;
+  sections.forEach(function(sec,i){
+    if(sec.offsetTop<=scrollY){
+      anchors.forEach(function(a){a.classList.remove('active')});
+      if(anchors[i])anchors[i].classList.add('active');
+    }
+  });
+},{passive:true});
+if(anchors.length)anchors[0].classList.add('active');
+</script>
+{% endblock %}

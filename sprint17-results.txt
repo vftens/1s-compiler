@@ -1,0 +1,22 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.2, pytest-9.0.3, pluggy-1.6.0 -- C:\Python314\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\DrVITAL\1s-compiler
+configfile: pyproject.toml
+plugins: anyio-4.12.1
+collecting ... collected 12 items
+
+tests/test_sprint17.py::TestRunAllList::test_run_all_scripts_non_empty PASSED [  8%]
+tests/test_sprint17.py::TestRunAllList::test_run_all_entries_registered_after_register PASSED [ 16%]
+tests/test_sprint17.py::TestRunAllAuth::test_run_all_requires_login PASSED [ 25%]
+tests/test_sprint17.py::TestRunAllStream::test_streams_done_at_end PASSED [ 33%]
+tests/test_sprint17.py::TestRunAllStream::test_output_from_all_scripts_present PASSED [ 41%]
+tests/test_sprint17.py::TestRunAllHeaders::test_section_headers_present PASSED [ 50%]
+tests/test_sprint17.py::TestRunAllHeaders::test_header_format_matches_pattern PASSED [ 58%]
+tests/test_sprint17.py::TestRunAllFailContinue::test_continues_after_failure PASSED [ 66%]
+tests/test_sprint17.py::TestRunAllTimeout::test_continues_after_timeout PASSED [ 75%]
+tests/test_sprint17.py::TestDemoPageRunAllButton::test_run_all_button_present PASSED [ 83%]
+tests/test_sprint17.py::TestRunAllDiscovery::test_run_all_in_api_discovery PASSED [ 91%]
+tests/test_sprint17.py::TestRunAllMissingFile::test_missing_script_emits_error_and_continues PASSED [100%]
+
+============================= 12 passed in 1.36s ==============================

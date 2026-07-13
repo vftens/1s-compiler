@@ -1,2 +1,3 @@
 # 1S: ERP Free Edition — Python dependencies
 flask>=3.0
+pyyaml>=6.0

@@ -1,93 +1,162 @@
-# Sprint 15 Plan — Excel/PDF Export + Token Auth + Script Persistence
+<!-- /autoplan restore point: /c/Users/DrVITAL/.gstack/projects/vftens-1s-compiler/sprint-12-query-engine-erp-dashboard-autoplan-restore-20260710-164040.md -->
+# Sprint 15 Plan — Financial Reporting Module
 
-**Branch:** `sprint-15-export-auth-scripts`
-**Target date:** 2026-07-11
+**Branch:** `sprint-15-financial-reports`
+**Target date:** 2026-07-14
 
 ---
 
 ## Context
 
-Sprints 12–14 landed the ERP dashboard, script query engine, and GLPK LP solver (566 tests).
-Sprint 13 was planned and reviewed but never implemented — its scope remains the highest-value
-gap in the product. This sprint ships it.
+Sprints 9–14 built a full ERP stack: double-entry accounting, payroll, procurement,
+budget control, LP optimization, and REST export. The accounting data is all there
+in `erp.db` — but there are no standard financial reports. Accountants who need a
+Balance Sheet or P&L today have to export raw data and build it in Excel manually.
 
-**What's missing:**
-- Accountants can see the budget chart but can't export to Excel or attach a PDF
-- Every editor session is ephemeral — scripts are lost on close
-- REST API requires a browser cookie — CLI integrations and cron jobs are blocked
-
----
-
-## Deliverable 1 — Excel/PDF Export (`src/runtime/export.py`)
-
-Three REST endpoints, files generated in-memory (BytesIO), never written to disk:
-
-```
-GET /api/v1/export/payroll?period=YYYY-MM   → payslips.xlsx  (one sheet per employee)
-GET /api/v1/export/budget?period=YYYY-MM    → budget.xlsx    (utilization: allocated vs consumed)
-GET /api/v1/export/org                      → org_chart.pdf  (org tree via reportlab)
-```
-
-All `@login_required`. Trilingual headers via `?lang=ru|uk|en` (default: `en`).
-
-**Payroll sheet columns:** emp_id, emp_name, period, gross, deductions, net, tax_profile
-**Budget sheet columns:** org_id, org_name, period, account, allocated, consumed, remaining, utilization_%
-- When `allocated = 0`: `utilization_% = None` → cell renders as "N/A" (avoids div/zero)
-
-**Org PDF:** Box-and-line tree; root at top; each node shows name + type + id; max depth 6.
-- Empty DB: return a 1-page PDF with "No organizational data" (not 500).
-
-**Libraries:** `openpyxl` (Excel), `reportlab` (PDF) — pure Python, Cyrillic-safe, no native deps.
-
-### Deliverable 1b — API discovery endpoint
-
-```
-GET /api/v1   → JSON {"endpoints": [{method, path, description}]}
-```
-
-No auth required. ~10-line dict in `server.py`. Free discoverability.
+This sprint adds the three core financial statements that every ERP must produce,
+plus REST endpoints and dashboard integration so reports are one click away.
 
 ---
 
-## Deliverable 2 — REST Token Auth (`src/runtime/token_auth.py`)
+## What already exists (leverage map)
+
+| Sub-problem | Existing code |
+|-------------|---------------|
+| Double-entry ledger data | `src/runtime/persistence.py` — `budget_allocations`, `budget_entries`; `PlanOfAccounts` (Sprint 9) |
+| Payroll figures | `payroll_results` table, `PayrollEngine` |
+| Procurement spend | `purchase_orders`, `receiving_orders` tables |
+| Excel export | `src/runtime/export.py` — `PayrollExporter`, `BudgetExporter` (Sprint 13 openpyxl) |
+| PDF export | `src/runtime/export.py` — `OrgPdfExporter` (Sprint 13 reportlab) |
+| REST auth | Bearer token + `@login_required` (Sprint 13) |
+| Dashboard pattern | `/erp-dashboard` Canvas chart + collapsible sections (Sprint 12) |
+| ERP query layer | `erp_query.py` — `ERPQuery` with `budget_utilization`, `payroll_history`, `summary_report` |
+
+**Key constraint:** All three reports must work against live `erp.db` data with zero
+additional schema changes. The data is already there.
+
+---
+
+## Deliverable 1 — Report Engine (`src/runtime/reports.py`)
+
+Three report classes, each following the same pattern:
+- `compute(period: str, db_path: str) → dict` — pure computation, no I/O
+- `to_excel(period, db_path) → BytesIO` — returns in-memory xlsx
+- `to_pdf(period, db_path) → BytesIO` — returns in-memory pdf
+- Full trilingual RU/UK/EN column headers and section labels
+
+### 1A — Trial Balance (Оборотно-сальдова відомість / ОСВ)
+
+Columns: account_code, account_name, opening_debit, opening_credit, period_debit,
+period_credit, closing_debit, closing_credit.
+
+Sourced from `budget_entries` grouped by account. Validates: total debit == total
+credit for each period (double-entry integrity check — fails with `TrialBalanceError`
+if violated).
+
+### 1B — Balance Sheet (Баланс / Balance Sheet)
+
+Standard two-column layout: Assets (left) vs Liabilities + Equity (right).
 
 ```
-POST /api/v1/token     body: {username, password}              → {token, expires_at}
-DELETE /api/v1/token   header: Authorization: Bearer <token>   → revoke
+ASSETS                          LIABILITIES + EQUITY
+─────────────────────────────   ─────────────────────────────
+Current Assets:                 Current Liabilities:
+  Cash & equivalents  X           Accounts payable    X
+  Accounts receivable X           Accrued payroll     X
+  Inventory           X         Long-term Liabilities:
+Fixed Assets:                     (reserved)          0
+  Property/Equipment  X         Equity:
+  Less: Depreciation (X)          Retained earnings   X
+                      ─────                           ─────
+Total Assets          X         Total L + E           X
 ```
 
-- Tokens: 64-byte `secrets.token_hex()`
-- Stored in `data/tokens.json` (path-jailed, .gitignore'd)
-- TTL: 24h default, `?ttl_hours=N` up to 168 (7 days)
-- All existing `@login_required` routes accept session cookie OR `Authorization: Bearer <token>`
-- `hmac.compare_digest` for constant-time token comparison
-- Expired tokens purged lazily on each `TokenStore.load()`
-- `os.replace()` atomic write (prevents corruption on concurrent saves)
-- 401 body includes `hint` field: `"use Authorization: Bearer <token> or log in via /login"`
+Sourced by mapping `budget_allocations.account` to asset/liability/equity buckets
+via a configurable account plan mapping (`profiles/chart_of_accounts.yaml` or
+hardcoded default). Must balance: `Total Assets == Total L+E`. If they don't,
+appends a `difference` line (not an error — signals incomplete data, not code bug).
 
-Token file schema:
+### 1C — Income Statement / P&L (Звіт про фінансові результати)
+
+```
+Revenue                         X
+Cost of Goods Sold             (X)
+─────────────────────────────────
+Gross Profit                    X
+  Operating expenses           (X)
+  Payroll expenses             (X)
+─────────────────────────────────
+Operating Profit (EBIT)         X
+  Other income/expense          X
+─────────────────────────────────
+Net Profit / (Loss)             X
+```
+
+Sourced from `budget_entries` (revenue/expense accounts) + `payroll_results`
+(payroll line). Period filter: calendar month or YTD via `period_mode=monthly|ytd`.
+
+---
+
+## Deliverable 2 — REST Endpoints (`src/server.py`)
+
+All `@login_required`. All support `?period=YYYY-MM&format=json|xlsx|pdf&lang=ru|uk|en`.
+
+```
+GET /api/v1/reports/trial-balance    → JSON or xlsx or pdf
+GET /api/v1/reports/balance-sheet    → JSON or xlsx or pdf
+GET /api/v1/reports/income-statement → JSON or xlsx or pdf
+GET /api/v1/reports                  → JSON index of available reports + last-run timestamp
+```
+
+Response for `format=json`:
 ```json
 {
-  "tokens": {
-    "<hex>": {"user": "admin", "expires": "2026-07-12T10:00:00Z", "created": "2026-07-11T10:00:00Z"}
-  }
+  "report": "trial-balance",
+  "period": "2026-07",
+  "generated_at": "2026-07-11T10:00:00Z",
+  "rows": [...],
+  "totals": {...},
+  "integrity": {"balanced": true, "difference": 0}
 }
 ```
 
+For xlsx/pdf: `Content-Disposition: attachment; filename="trial_balance_2026-07.xlsx"`
+
 ---
 
-## Deliverable 3 — Script Editor: Save / Load (`data/user_scripts/`)
+## Deliverable 3 — Reports Dashboard page (`/reports`)
+
+Extend the ERP dashboard pattern:
+
+- Period selector (YYYY-MM, same as `/erp-dashboard`)
+- Three tabs: Trial Balance / Balance Sheet / Income Statement
+- Each tab: summary KPI row + full table + "Export Excel" + "Export PDF" buttons
+- Empty state: "No accounting data for this period" (not blank or error)
+- Same dark/light theme, no external CDN
+
+---
+
+## Deliverable 4 — 1S script bindings
 
 ```
-POST /api/v1/scripts/save     body: {name, code}   → saves to data/user_scripts/<user>/<name>.1s
-GET  /api/v1/scripts/user                          → lists user's saved scripts
-DELETE /api/v1/scripts/<name>                      → deletes one script
+// English
+Reporter = NewReporter()
+TB = Reporter.TrialBalance("2026-07")
+Message("Balanced: " + String(TB.IsBalanced))
+Message("Total debit: " + String(TB.TotalDebit))
+
+BS = Reporter.BalanceSheet("2026-07")
+Message("Total assets: " + String(BS.TotalAssets))
+Message("Equity: " + String(BS.Equity))
+
+PL = Reporter.IncomeStatement("2026-07")
+Message("Net profit: " + String(PL.NetProfit))
 ```
 
-- Filename validation: must match `[a-zA-Z0-9_-]+\.1s`, no path separators
-- Session isolation: user A cannot read or list user B's scripts
-- Editor UI: "Save" button + "My Scripts" dropdown alongside existing "Examples" dropdown
-- `data/user_scripts/` auto-populated on server start
+Trilingual: `НовыйОтчетчик` / `НовийЗвітник` / `NewReporter`,
+`ОборотноСальдоваяВедомость` / `ОборотноСальдоваВідомість` / `TrialBalance`,
+`Баланс` / `Баланс` / `BalanceSheet`,
+`ОтчетОПрибылях` / `ЗвітПроПрибутки` / `IncomeStatement`.
 
 ---
 
@@ -95,17 +164,18 @@ DELETE /api/v1/scripts/<name>                      → deletes one script
 
 ```
 src/
-  server.py              ← extend @login_required + 7 new routes + GET /api/v1
+  server.py              ← 4 new routes + /reports page
   runtime/
-    export.py            ← NEW: PayrollExporter, BudgetExporter, OrgPdfExporter
-    token_auth.py        ← NEW: TokenStore (load/save/validate/create/revoke)
-data/
-  tokens.json            ← runtime only (.gitignore'd)
-  user_scripts/          ← runtime dir (.gitignore'd)
-    <username>/
-      <name>.1s
+    reports.py           ← NEW: TrialBalanceReport, BalanceSheetReport, IncomeStatement
 src/templates/
-  editor.html            ← extend: Save button + My Scripts dropdown
+  reports.html           ← NEW: 3-tab dashboard
+  _report_table.html     ← NEW: reusable partial (server-side render for PDF)
+profiles/
+  chart_of_accounts.yaml ← NEW: account → asset/liability/equity mapping (default)
+examples/
+  demo_reports_ru.1s     ← trial balance + balance sheet RU
+  demo_reports_uk.1s     ← income statement + YTD comparison UK
+  demo_reports_en.1s     ← full cycle: compute + export EN
 ```
 
 ---
@@ -114,89 +184,147 @@ src/templates/
 
 | Concern | Mitigation |
 |---------|-----------|
-| Token guessing | 64-byte hex = 128 hex chars; brute-force infeasible |
-| Token timing attack | `hmac.compare_digest` on every lookup |
-| Token file corruption | `os.replace()` atomic write |
-| Script path traversal | `Path(name).name` == name assertion + regex `[a-zA-Z0-9_-]+\.1s` |
-| Script session isolation | scripts stored under `data/user_scripts/<session_user>/` |
-| Export data leakage | endpoints are `@login_required`; read-only against `erp.db` |
-| Token TTL bypass | TTL checked on every request, not just creation |
+| Data leakage | All endpoints `@login_required`; each report is read-only against `erp.db` |
+| Period injection | `period` validated: `r'^\d{4}-\d{2}$'` before any SQL |
+| Path traversal | `db_path` validated via existing `AttachDB` path-jail logic |
+| Large output DoS | Max 10,000 rows per report; truncated with `X-Truncated: true` header |
 
 ---
 
 ## Test Plan
 
-New file: `tests/test_sprint15.py` (target: 28 tests)
+New file: `tests/test_sprint15.py` (target: 32 tests)
 
 ```
-TestPayrollExport
-  test_payroll_xlsx_returns_200
-  test_payroll_xlsx_content_type
-  test_payroll_xlsx_has_correct_columns
-  test_payroll_xlsx_trilingual_ru
-  test_payroll_unauthenticated_redirects
+TestTrialBalance
+  test_trial_balance_returns_rows
+  test_trial_balance_debit_credit_balanced
+  test_trial_balance_empty_period_returns_empty
+  test_trial_balance_xlsx_export
+  test_trial_balance_pdf_export
 
-TestBudgetExport
-  test_budget_xlsx_returns_200
-  test_budget_xlsx_utilization_pct_computed
-  test_budget_allocated_zero_renders_na
-  test_budget_empty_period_returns_empty_sheet
+TestBalanceSheet
+  test_balance_sheet_assets_equals_liabilities_plus_equity
+  test_balance_sheet_period_filter
+  test_balance_sheet_difference_line_on_imbalance
+  test_balance_sheet_xlsx_export
 
-TestOrgPdfExport
-  test_org_pdf_returns_200
-  test_org_pdf_content_type
-  test_org_pdf_empty_db_returns_placeholder_page
+TestIncomeStatement
+  test_income_statement_net_profit_computed
+  test_income_statement_ytd_mode
+  test_income_statement_empty_period
 
-TestTokenAuth
-  test_create_token_returns_token
-  test_token_accepted_on_api_endpoint
-  test_expired_token_rejected
-  test_invalid_token_rejected
-  test_revoke_token
-  test_wrong_password_401
-  test_ttl_hours_param
-  test_401_body_includes_hint
+TestReportEndpoints
+  test_trial_balance_json_endpoint
+  test_trial_balance_xlsx_endpoint
+  test_trial_balance_pdf_endpoint
+  test_balance_sheet_json_endpoint
+  test_income_statement_json_endpoint
+  test_reports_index_endpoint
+  test_reports_unauthenticated_redirects
+  test_period_injection_blocked
+  test_format_param_invalid_returns_400
 
-TestUserScripts
-  test_save_script
-  test_list_user_scripts
-  test_delete_script
-  test_path_traversal_blocked
-  test_invalid_name_rejected
-  test_session_isolation
+TestReportsDashboard
+  test_reports_page_returns_200
+  test_reports_page_unauthenticated
 
-TestLoginRequiredDecorator
-  test_decorator_accepts_session_cookie
-  test_decorator_accepts_bearer_token
-  test_decorator_rejects_neither
+TestNewReporterBinding
+  test_trial_balance_binding_is_balanced
+  test_balance_sheet_binding_total_assets
+  test_income_statement_binding_net_profit
+  test_trilingual_ru_aliases
+  test_trilingual_uk_aliases
 
-TestApiDiscovery
-  test_api_v1_returns_endpoint_list
+TestReportEdgeCases
+  test_max_rows_truncation_header
+  test_missing_db_returns_503
+  test_empty_db_no_500
+  test_pdf_reportlab_import_error_returns_503
 ```
 
-**Target:** 28 new tests → ~594 total
+**Target:** 32 new tests → 647 total
 
 ---
 
 ## Decision Audit Trail
 
+### Original (planning)
 | # | Decision | Rationale | Rejected |
 |---|----------|-----------|---------|
-| 1 | openpyxl + reportlab | Pure Python, Cyrillic, no native deps | xlsxwriter+weasyprint (needs GTK on Windows) |
-| 2 | Full 3-deliverable scope | All reviewed in Sprint 13; unblocks real users today | Trim D3 |
-| 3 | BytesIO, never disk | No cleanup logic needed; stateless per-request | Temp files |
-| 4 | `os.replace()` atomic write for tokens.json | Prevents corruption on concurrent saves | File lock |
-| 5 | Lazy TTL GC on load | No background thread; simple; correct | Cron purge |
-| 6 | 401 hint field | Developer can act without reading docs | Bare 401 |
-| 7 | Filename regex + Path.name assertion | Defense in depth for path traversal | One check only |
+| 1 | Build on existing `export.py` openpyxl/reportlab | Infrastructure already in place, no new deps | New report library |
+| 2 | `profiles/chart_of_accounts.yaml` for account mapping | Configurable without code change; matches industry norm | Hardcoded mapping only |
+| 3 | `format=json\|xlsx\|pdf` single endpoint per report | One URL, negotiated format; cleaner DX | Separate `/json`, `/xlsx`, `/pdf` endpoints |
+| 4 | Period mode `monthly\|ytd` on income statement | YTD comparison is standard accounting practice | Monthly only |
+| 5 | Max 10,000 rows + truncation header | DoS guard; in practice trial balance rarely exceeds 500 rows | No limit |
+| 6 | `TrialBalanceError` on debit≠credit | Data integrity signal, not silent failure | Return unbalanced silently |
+| 7 | `/reports` tab dashboard (not separate pages) | One URL to share; consistent with `/erp-dashboard` pattern | Separate pages per report |
+
+### CEO Review — auto-decisions
+| # | Decision | Rationale | Rejected |
+|---|----------|-----------|---------|
+| C1 | `chart_of_accounts.yaml` mapping is required deliverable, not optional | Balance Sheet correctness depends on it; validation required | Leave as optional |
+| C2 | Add `period_snapshots` table spec + `opening_balance_note` in JSON | `budget_entries` has no carry-forward mechanism; make explicit | Silently return zeros |
+| C3 | Defer Cash Flow Statement to Sprint 16 | Indirect method needs AP/AR aging data not yet modeled | Implement in Sprint 15 |
+| C4 | Defer full МСФО/П(С)БО compliance certification | Requires external auditor input, not a code problem | Certify in Sprint 15 |
+
+### Design Review — auto-decisions
+| # | Decision | Rationale | Rejected |
+|---|----------|-----------|---------|
+| D1 | Tab layout stays on single `/reports` page | One URL to bookmark/share; consistent with dashboard pattern | Separate pages per report |
+| D2 | Empty state: "No accounting data for YYYY-MM" per tab | Prevents blank/error confusion when period has no entries | Generic "no data" |
+| D3 | Export buttons always visible, disabled when no data | Discoverable; not hidden until data loads | Hidden until data |
+| D4 | Period selector shared across all three tabs | Single period context; avoids 3-pickers confusion for beginners | Per-tab selector (taste decision pending) |
+| D5 | Dark/light theme via CSS custom properties | Matches existing dashboard; no external CDN | New theme library |
+
+### Eng Review — auto-decisions
+| # | Decision | Rationale | Rejected |
+|---|----------|-----------|---------|
+| E1 | Extract `src/runtime/db.py` shared `_connect()` helper | DRY: `export.py` and `reports.py` both need DB access | Duplicate `_connect` |
+| E2 | `reports.py` delegates to `ERPQuery` for data access | P4: reuse existing query layer; no raw SQL in reports.py | Raw SQL in reports |
+| E3 | `compute(period, db_path) → dict`; `to_excel(data)` / `to_pdf(data)` accept pre-computed dict | Prevents double-query; REST endpoint calls compute() once | Pass db_path to format methods |
+| E4 | `CAST(amount AS REAL)` + null guard; log warning for non-numeric rows | TEXT column silently returns NULL on non-numeric; must handle explicitly | Raise exception |
+| E5 | Period validation: `r'^\d{4}-(0[1-9]\|1[0-2])$'` (month 01-12 only) | Prevents month 13/00 from reaching SQL | `r'^\d{4}-\d{2}$'` |
+| E6 | `pyyaml` in `requirements.txt`; fallback to hardcoded default if missing/malformed | P1: must work even if yaml unavailable | Crash on missing yaml |
+| E7 | `LIMIT 10001` in SQL; detect 10001st row → set `X-Truncated: true` header | DoS guard at DB level, not Python truncation | Python-level slice |
+| E8 | `db_path` is hardcoded application path for report endpoints (no user input) | No path traversal risk on read-only report routes | Validate path-jail |
+| E9 | 7 additional tests added (yaml fallback, text amount, ytd mixed formats, month OOB, lang fallback, double-query regression, excel pre-computed dict) | Cover new failure modes discovered in eng review | Skip edge cases |
+
+### DX Review — auto-decisions
+| # | Decision | Rationale | Rejected |
+|---|----------|-----------|---------|
+| X1 | JSON always uses canonical English snake_case keys; `?lang` only affects xlsx/pdf headers | Prevents silent consumer breakage when team language preference differs | lang changes JSON keys |
+| X2 | Add 4 report endpoints to `_API_ENDPOINTS` dict in `server.py` | Discovery gap: `GET /api/v1` would return zero report endpoints | Leave discovery stale |
+| X3 | `integrity` block only on Trial Balance; Balance Sheet gets `balance_check: {difference: N}` (nullable) | `integrity.balanced` is meaningless on BS/IS which can legitimately not balance mid-period | Same structure everywhere |
+| X4 | All 400/422/503 error responses include `{"error": "...", "hint": "..."}` | Actionable errors reduce TTHW; consistent with token endpoint pattern | Error string only |
+| X5 | Document format-negotiation divergence in discovery description; don't backport to Sprint 13 | YAGNI: touching old export endpoints in Sprint 15 risks regression | Align old endpoints |
+| X6 | `Reporter.IncomeStatement("2026-07", "ytd")` — second optional param defaulting to `"monthly"` | YTD mode must be accessible from 1S scripts; was missing entirely | REST-only YTD |
 
 ---
 
 ## GSTACK REVIEW REPORT
 
-| Review | Status |
-|--------|--------|
-| CEO Review | ✅ carried from Sprint 13 plan |
-| Eng Review | ✅ carried from Sprint 13 plan |
-| DX Review | ✅ carried from Sprint 13 plan |
-| Sprint 15 approval | pending user |
+| Review | Status | Findings | Auto-decided | Taste decisions |
+|--------|--------|----------|--------------|-----------------|
+| CEO Review | complete | 5 | 4 | 1 |
+| Design Review | complete | 6 | 5 | 1 |
+| Eng Review | complete | 9 | 9 | 0 |
+| DX Review | complete | 6 | 6 | 0 |
+
+### Taste decisions (Phase 4 gate — user-confirmed)
+| # | Question | Decision | Notes |
+|---|----------|----------|-------|
+| T1 | Cut 1S script bindings from Sprint 15? | **Keep** — ship `NewReporter()` + trilingual aliases as scoped | User chose feature completeness |
+| T2 | Per-tab or global period selector? | **Single global selector** — one `?period=` param, all tabs in sync | Standard accounting UX |
+
+**Test plan updated:** 32 → 39 tests (7 new edge cases from Eng review)
+
+---
+
+## Deferred Items (post-Sprint 15)
+
+- Cash Flow Statement (indirect method) — Sprint 16; needs AP/AR aging data
+- AR/AP aging reports — Sprint 16
+- CSV/Excel data import / onboarding wizard — Sprint 16+
+- Full МСФО/П(С)БО compliance certification — external auditor input required
+- Format negotiation on legacy Sprint 13 export endpoints — YAGNI for now

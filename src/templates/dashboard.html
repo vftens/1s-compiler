@@ -53,6 +53,41 @@
   {% endif %}
 </div>
 
+<div id="demo-banner" style="margin-bottom:16px;padding:12px 18px;border-radius:6px;font-size:13px;
+     display:flex;align-items:center;gap:12px;border-left-width:4px;border-left-style:solid;">
+  <span id="demo-banner-icon">🎬</span>
+  <span id="demo-banner-text"></span>
+</div>
+<script>
+(function(){
+  var el=document.getElementById('demo-banner');
+  var icon=document.getElementById('demo-banner-icon');
+  var txt=document.getElementById('demo-banner-text');
+  function setBanner(state){
+    if(state==='running'||state==='pending'){
+      el.style.background='#fff8e1';el.style.borderColor='#f9a825';el.style.color='#5d4037';
+      icon.textContent='⟳';
+      txt.innerHTML='Initializing demo data&hellip; <a href="/demo" style="color:#e65100">Quick Demo</a> will be ready shortly.';
+    } else {
+      el.style.background='#e3f2fd';el.style.borderColor='#1565c0';el.style.color='#0d47a1';
+      icon.textContent='🎬';
+      txt.innerHTML='Run live <b>LP Solver</b>, <b>ERP Full Cycle</b>, and <b>Reports</b> demos — no setup required. <a href="/demo" style="color:#1565c0;font-weight:600">Quick Demo &rarr;</a>';
+    }
+  }
+  fetch('/api/v1/seed-state').then(function(r){return r.json()}).then(function(d){
+    setBanner(d.state);
+    if(d.state==='running'||d.state==='pending'){
+      var t=setInterval(function(){
+        fetch('/api/v1/seed-state').then(function(r){return r.json()}).then(function(d2){
+          setBanner(d2.state);
+          if(d2.state==='ready'||d2.state==='error')clearInterval(t);
+        });
+      },4000);
+    }
+  }).catch(function(){setBanner('ready')});
+})();
+</script>
+
 <div class="module-filter">
   <a href="{{ url_for('dashboard') }}"
      class="filter-chip {{ 'active' if not active_module }}">{{ t.dash_filter_all }}</a>

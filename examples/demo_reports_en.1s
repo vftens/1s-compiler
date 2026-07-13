@@ -1,0 +1,46 @@
+// Demo: Full financial reporting cycle — Trial Balance + Balance Sheet + P&L (EN)
+// Demonstrates NewReporter() binding and all three standard financial statements.
+
+Reporter = NewReporter();
+
+// ── Trial Balance ─────────────────────────────────────────────────────────────
+Message("=== Trial Balance — 2026-07 ===");
+
+TB = Reporter.TrialBalance("2026-07");
+
+Message("Total Debit:   " + String(TB.TotalDebit));
+Message("Total Credit:  " + String(TB.TotalCredit));
+
+If TB.IsBalanced Then
+    Message("Status: BALANCED — double-entry integrity confirmed.");
+Else
+    Message("WARNING: Imbalanced! Review journal entries for this period.");
+EndIf;
+
+// ── Balance Sheet ─────────────────────────────────────────────────────────────
+Message("");
+Message("=== Balance Sheet — 2026-07 ===");
+
+BS = Reporter.BalanceSheet("2026-07");
+
+Message("Total Assets:             " + String(BS.TotalAssets));
+Message("Total Liabilities:        " + String(BS.TotalLiabilities));
+Message("Equity:                   " + String(BS.Equity));
+
+// ── Income Statement ──────────────────────────────────────────────────────────
+Message("");
+Message("=== Income Statement — 2026-07 ===");
+
+PL = Reporter.IncomeStatement("2026-07");
+
+Message("Revenue:           " + String(PL.Revenue));
+Message("Gross Profit:      " + String(PL.GrossProfit));
+Message("Net Profit/(Loss): " + String(PL.NetProfit));
+
+If PL.NetProfit > 0 Then
+    Message("Result: PROFITABLE period.");
+ElseIf PL.NetProfit < 0 Then
+    Message("Result: LOSS. Review cost structure.");
+Else
+    Message("Result: Break-even.");
+EndIf;

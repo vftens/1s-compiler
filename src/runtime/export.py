@@ -37,14 +37,8 @@ _SHEET_NAMES = {
 
 
 def _connect(db_path: Path) -> sqlite3.Connection:
-    if not db_path.exists():
-        raise FileNotFoundError(
-            f"Database not found: {db_path}. "
-            "Run the server at least once to initialise erp.db."
-        )
-    conn = sqlite3.connect(str(db_path), check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
+    from .db import connect as _db_connect
+    return _db_connect(db_path)
 
 
 def _header_row(ws, headers: list[str]) -> None:

@@ -518,6 +518,25 @@ def load_payroll_results(db_path: str, period: str | None = None) -> list:
 
 # ── WorkflowConfig ────────────────────────────────────────────────────────────
 
+def ensure_period_snapshots_table(db_path: str) -> None:
+    """Create period_snapshots table if not exists (Sprint 15 — opening balance support)."""
+    path = Path(db_path)
+    if not path.exists():
+        return
+    with sqlite3.connect(str(path)) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS period_snapshots (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                period      TEXT NOT NULL,
+                account     TEXT NOT NULL,
+                debit       TEXT NOT NULL DEFAULT '0',
+                credit      TEXT NOT NULL DEFAULT '0',
+                UNIQUE(period, account)
+            )
+        """)
+        conn.commit()
+
+
 def save_workflow_config(cfg, db_path: str) -> int:
     """Save WorkflowConfig rules to SQLite as JSON blobs per doc_type."""
     path = Path(db_path)

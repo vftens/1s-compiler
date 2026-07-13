@@ -1,0 +1,49 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.2, pytest-9.0.3, pluggy-1.6.0 -- C:\Python314\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\DrVITAL\1s-compiler
+configfile: pyproject.toml
+plugins: anyio-4.12.1
+collecting ... collected 39 items
+
+tests/test_sprint15.py::TestTrialBalance::test_trial_balance_returns_rows PASSED [  2%]
+tests/test_sprint15.py::TestTrialBalance::test_trial_balance_debit_credit_balanced PASSED [  5%]
+tests/test_sprint15.py::TestTrialBalance::test_trial_balance_empty_period_returns_empty PASSED [  7%]
+tests/test_sprint15.py::TestTrialBalance::test_trial_balance_xlsx_export PASSED [ 10%]
+tests/test_sprint15.py::TestTrialBalance::test_trial_balance_pdf_export PASSED [ 12%]
+tests/test_sprint15.py::TestBalanceSheet::test_balance_sheet_assets_equals_liabilities_plus_equity PASSED [ 15%]
+tests/test_sprint15.py::TestBalanceSheet::test_balance_sheet_period_filter PASSED [ 17%]
+tests/test_sprint15.py::TestBalanceSheet::test_balance_sheet_difference_line_on_imbalance PASSED [ 20%]
+tests/test_sprint15.py::TestBalanceSheet::test_balance_sheet_xlsx_export PASSED [ 23%]
+tests/test_sprint15.py::TestIncomeStatement::test_income_statement_net_profit_computed PASSED [ 25%]
+tests/test_sprint15.py::TestIncomeStatement::test_income_statement_ytd_mode PASSED [ 28%]
+tests/test_sprint15.py::TestIncomeStatement::test_income_statement_empty_period PASSED [ 30%]
+tests/test_sprint15.py::TestReportEndpoints::test_trial_balance_json_endpoint PASSED [ 33%]
+tests/test_sprint15.py::TestReportEndpoints::test_trial_balance_xlsx_endpoint PASSED [ 35%]
+tests/test_sprint15.py::TestReportEndpoints::test_trial_balance_pdf_endpoint PASSED [ 38%]
+tests/test_sprint15.py::TestReportEndpoints::test_balance_sheet_json_endpoint PASSED [ 41%]
+tests/test_sprint15.py::TestReportEndpoints::test_income_statement_json_endpoint PASSED [ 43%]
+tests/test_sprint15.py::TestReportEndpoints::test_reports_index_endpoint PASSED [ 46%]
+tests/test_sprint15.py::TestReportEndpoints::test_reports_unauthenticated_redirects PASSED [ 48%]
+tests/test_sprint15.py::TestReportEndpoints::test_period_injection_blocked PASSED [ 51%]
+tests/test_sprint15.py::TestReportEndpoints::test_format_param_invalid_returns_400 PASSED [ 53%]
+tests/test_sprint15.py::TestReportEndpoints::test_new_endpoints_in_discovery PASSED [ 56%]
+tests/test_sprint15.py::TestReportEndpoints::test_truncation_header PASSED [ 58%]
+tests/test_sprint15.py::TestReportsDashboard::test_reports_page_returns_200 PASSED [ 61%]
+tests/test_sprint15.py::TestReportsDashboard::test_reports_page_unauthenticated PASSED [ 64%]
+tests/test_sprint15.py::TestNewReporterBinding::test_trial_balance_binding_is_balanced PASSED [ 66%]
+tests/test_sprint15.py::TestNewReporterBinding::test_balance_sheet_binding_total_assets PASSED [ 69%]
+tests/test_sprint15.py::TestNewReporterBinding::test_income_statement_binding_net_profit PASSED [ 71%]
+tests/test_sprint15.py::TestNewReporterBinding::test_income_statement_binding_ytd PASSED [ 74%]
+tests/test_sprint15.py::TestNewReporterBinding::test_trilingual_ru_aliases PASSED [ 76%]
+tests/test_sprint15.py::TestNewReporterBinding::test_trilingual_uk_aliases PASSED [ 79%]
+tests/test_sprint15.py::TestReportEdgeCases::test_missing_db_returns_503 PASSED [ 82%]
+tests/test_sprint15.py::TestReportEdgeCases::test_empty_db_no_500 PASSED [ 84%]
+tests/test_sprint15.py::TestReportEdgeCases::test_pdf_reportlab_import_error_returns_503 PASSED [ 87%]
+tests/test_sprint15.py::TestReportEdgeCases::test_balance_sheet_yaml_missing_falls_back_to_default PASSED [ 89%]
+tests/test_sprint15.py::TestReportEdgeCases::test_balance_sheet_yaml_malformed_falls_back_to_default PASSED [ 92%]
+tests/test_sprint15.py::TestReportEdgeCases::test_trial_balance_text_amount_non_numeric PASSED [ 94%]
+tests/test_sprint15.py::TestReportEdgeCases::test_income_statement_ytd_mixed_period_formats PASSED [ 97%]
+tests/test_sprint15.py::TestReportEdgeCases::test_to_excel_uses_precomputed_dict PASSED [100%]
+
+============================= 39 passed in 2.46s ==============================
