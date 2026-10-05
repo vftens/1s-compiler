@@ -1,6 +1,12 @@
 # 1S: ERP Free Edition
 
-> Open-source 1C-compatible ERP scripting engine — bilingual (Ukrainian 🇺🇦 + Russian), runs on Python, no vendor lock-in.
+> Move your business logic out of 1C/BAS: audit, port and verify on open-source Python.
+
+**Focus (since Sprint 18): migration.** 1S reads 1C/BAS code, tells you what ports as is, what depends on the 1C object model and what still needs work, then runs the ported logic on Python. The ERP modules below (procurement, payroll, LP and others) stay as a **frozen showcase**: maintained and tested, no new features. See `python -m src.cli about` and [src/product.py](src/product.py).
+
+```bash
+python -m src.cli migrate audit path/to/config-dump --lang ru -o audit.md
+```
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10+-green.svg)](https://python.org)
@@ -13,7 +19,7 @@
 ## What is this?
 
 1S is a compiler + runtime that lets you write, run, and migrate **1C-style business scripts**
-without buying a 1C license. Your existing `.1s` / `.bsl` scripts work as-is.
+without buying a 1C license. Standalone `.1s` / `.bsl` scripts run as is; code inside a configuration is audited first (`migrate audit`) because it depends on the 1C object model.
 
 ```
 Функція РозрахуватиПДВ(Сума)   // Ukrainian

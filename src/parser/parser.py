@@ -264,8 +264,21 @@ class Parser:
         if t.type == TokenType.IDENTIFIER:
             return self._parse_assign_or_call()
 
-        self._skip_semis()
-        return None
+        # A short keyword used as a variable name (Ukrainian "з", Russian "и" ...):
+        # "з = Запрос(...)", "з.Выполнить()". If the next token makes it an
+        # assignment target or a call, read it as an identifier.
+        nxt = self.tokens[self.pos + 1] if self.pos + 1 < len(self.tokens) else None
+        if (isinstance(t.value, str) and t.value.isidentifier() and nxt is not None
+                and nxt.type in (TokenType.EQ, TokenType.DOT, TokenType.LPAREN, TokenType.LBRACKET)):
+            t.type = TokenType.IDENTIFIER
+            return self._parse_assign_or_call()
+
+        if t.type == TokenType.SEMICOLON:
+            self._skip_semis()
+            return None
+        # Anything else cannot start a statement. Returning None here without
+        # consuming the token made the caller's loop spin forever.
+        raise ParseError(f"Unexpected {t.type.name} {t.value!r} at statement start", t)
 
     def _parse_if(self) -> IfStmt:
         line, col = self._loc()
@@ -522,6 +535,12 @@ class Parser:
             expr = self._parse_expression()
             self._expect(TokenType.RPAREN)
             return expr
+        # Operand position: an operator word cannot stand here, so a short
+        # keyword like Ukrainian "з" (IN) or Russian "и" (AND) is a variable
+        # name ("рез = з.Выполнить()" in Russian code).
+        if t.type in (TokenType.IN, TokenType.AND, TokenType.OR) and isinstance(t.value, str) and t.value.isidentifier():
+            self._advance()
+            return Identifier(line=line, col=col, name=t.value)
 
         raise ParseError(f"Unexpected token in expression", t)
 

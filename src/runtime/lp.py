@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import os
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -25,6 +26,13 @@ def _glpsol_path() -> Path:
     env = os.environ.get("GLPSOL_PATH")
     if env:
         return Path(env)
+    # The bundled glpsol.exe is a Windows binary: use it only on Windows.
+    if os.name == "nt" and _GLPK_DEFAULT.exists():
+        return _GLPK_DEFAULT
+    # Linux/macOS servers: glpsol from the system package (apt install glpk-utils)
+    found = shutil.which("glpsol")
+    if found:
+        return Path(found)
     if _GLPK_DEFAULT.exists():
         return _GLPK_DEFAULT
     raise FileNotFoundError(

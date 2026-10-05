@@ -6,6 +6,8 @@ Usage:
     python -m src.cli run     hello.1s
     python -m src.cli tokens  hello.1s           # dump token stream
     python -m src.cli ast     hello.1s           # dump AST
+    python -m src.cli migrate audit <dump-dir>   # migration audit of 1C/BAS code
+    python -m src.cli about                      # product focus and module tiers
 """
 import sys
 import os
@@ -132,6 +134,17 @@ def cmd_run(path: Path):
     ns = {k: getattr(runtime_mod, k) for k in dir(runtime_mod) if not k.startswith("__")}
     exec(compile(py_src, str(path), "exec"), ns)
 
+def cmd_migrate_audit(path: Path, lang: str = "ru", as_json: bool = False,
+                      out: Path | None = None):
+    from .migrate import audit, render_json, render_markdown
+    report = audit(path)
+    text = render_json(report) if as_json else render_markdown(report, lang)
+    if out:
+        out.write_text(text, encoding="utf-8")
+        print(f"Report: {out}")
+    else:
+        print(text)
+
 def main():
     parser = argparse.ArgumentParser(prog="1s", description="1S: ERP Free Edition compiler")
     sub = parser.add_subparsers(dest="command")
@@ -161,6 +174,16 @@ def main():
     p_cybld.add_argument("--run", action="store_true",
                           help="Execute the compiled module after building")
 
+    p_mig = sub.add_parser("migrate", help="Migration toolkit: audit 1C/BAS code (product focus)")
+    mig_sub = p_mig.add_subparsers(dest="migrate_command")
+    p_aud = mig_sub.add_parser("audit", help="Audit a configuration dumped to files, or a folder of .bsl")
+    p_aud.add_argument("path")
+    p_aud.add_argument("--lang", choices=["ru", "uk", "en"], default="ru")
+    p_aud.add_argument("--json", action="store_true", help="JSON instead of Markdown")
+    p_aud.add_argument("-o", "--output", help="Write the report to a file")
+
+    p_about = sub.add_parser("about", help="Product focus and module tiers")
+
     p_serve = sub.add_parser("serve", help="Запустить веб-интерфейс")
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=5000)
@@ -182,6 +205,15 @@ def main():
                        Path(args.output) if args.output else None)
     elif args.command == "cython-build":
         cmd_cython_build(Path(args.file), run_after=args.run)
+    elif args.command == "migrate":
+        if args.migrate_command != "audit":
+            p_mig.print_help()
+            return
+        cmd_migrate_audit(Path(args.path), args.lang, args.json,
+                          Path(args.output) if args.output else None)
+    elif args.command == "about":
+        from .product import main as product_main
+        product_main([])
     elif args.command == "serve":
         from .server import run_server
         run_server(host=args.host, port=args.port, debug=args.debug)

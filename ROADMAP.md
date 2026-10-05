@@ -105,6 +105,17 @@
 
 ---
 
+## 🎯 v1.2 — Sprint 18: Focus on migration (October 2026)
+
+- [x] **Product focus fixed in code** — `src/product.py`: focus = migration; every module tiered core / focus / showcase; `python -m src.cli about`
+- [x] **Frozen ERP showcase** — public API of 14 showcase modules pinned in `tests/frozen_api.json`; new features go to `src/migrate`
+- [x] **`migrate audit` MVP** — `python -m src.cli migrate audit <dump>`: portable / platform-bound / unparsed per module, 1C object-model references, RU/UK/EN Markdown or JSON
+- [x] **LP solver on Linux** — system `glpsol` used outside Windows
+- [x] **Parser hang fixed** — short keywords (`з`, `и`) as variable names; stray tokens raise instead of looping
+- [ ] Per-procedure audit, Configuration.xml reader, Odoo mapping report, ОСВ reconciliation ← next
+
+---
+
 ## 🌍 v1.2 — Open ecosystem (2027)
 
 - [ ] **Module registry** — community-published accounting rules, payroll formulas
