@@ -14,7 +14,7 @@ set EXE_SRC=%~dp0..\dist\1S-ERP.exe
 :: Check .exe exists
 if not exist "%EXE_SRC%" (
     echo [ERROR] 1S-ERP.exe not found in dist\
-    echo         Run first: python -m PyInstaller 1S-ERP.spec
+    echo         Run first: set ONES_EDITION=base ^&^& python -m PyInstaller packaging\windows.spec
     pause & exit /b 1
 )
 

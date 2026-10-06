@@ -56,7 +56,7 @@ Desktop.ini
 
 # ── Windows installer / PyInstaller ──────────────────────────────────────────
 *.spec
-!1S-ERP.spec
+!packaging/windows.spec
 dist/
 build/
 

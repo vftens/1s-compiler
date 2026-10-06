@@ -29,9 +29,9 @@ Message("In-memory targets: " + targets.Count() + " rows");
 
 // Register the in-memory table and join with org_nodes from erp.db
 q = Query("SELECT t.org_key, t.target_pct, o.name AS org_name, o.type AS org_type
-           FROM targets t
-           LEFT JOIN org_nodes o ON o.id = t.org_key
-           ORDER BY t.target_pct DESC");
+           |FROM targets t
+           |LEFT JOIN org_nodes o ON o.id = t.org_key
+           |ORDER BY t.target_pct DESC");
 q.RegisterTable("targets", targets);
 q.AttachDB("erp.db");
 result = q.Execute();
@@ -50,7 +50,7 @@ While cursor.Next() Do
         name = "(not in org chart)";
     EndIf;
     Message(key + " | " + pct + "% | " + name + " | " + typ);
-EndWhile;
+EndDo;
 
 Message("");
 Message("=== Join complete. In-memory + SQLite ERP tables unified in one query. ===");

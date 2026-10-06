@@ -302,6 +302,17 @@ def String(v) -> str:
     if v is None or isinstance(v, _Undefined): return ""
     return str(v)
 
+def _cat(a, b):
+    """1C "+" when a string is involved: the other side goes through Строка().
+
+    "Итого: " + 5 is "Итого: 5" in 1C; Python raises TypeError. The
+    transpiler emits _cat only when one operand is a string literal, so
+    numeric "+" stays a plain Python "+".
+    """
+    if isinstance(a, str) or isinstance(b, str):
+        return String(a) + String(b)
+    return a + b
+
 def Number(v) -> Decimal:
     try: return Decimal(str(v))
     except: return Decimal(0)
@@ -582,6 +593,7 @@ class _ValueTable:
     Сортувати    = Sort
 
 ТаблицаЗначений  = _ValueTable
+ValueTable       = _ValueTable   # English alias
 ТаблицяЗначень   = _ValueTable
 
 
@@ -745,3 +757,5 @@ def ErrorDescription() -> str:
 Структура          = _Structure   # identical spelling in Uk/Ru
 ТаблицяЗначень     = _ValueTable
 СписокЗначень      = _ValueList   # same spelling in Uk/Ru
+
+ValueList = _ValueList   # English alias

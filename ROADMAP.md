@@ -116,6 +116,17 @@
 
 ---
 
+## 🇺🇦 v1.3 — Sprint 19: migration audit for integrators (October 2026)
+
+- [x] **Audit per procedure** — portable procedures inside platform-bound modules (examples: 94% of procedure code portable)
+- [x] **Metadata reader** — object XMLs from "Выгрузить конфигурацию в файлы": attributes, types, tabular sections, dimensions, references
+- [x] **1C → Odoo map** — ~40 rules (RU/UK/EN) onto Odoo 17/18 models; unmatched objects listed as custom scope
+- [x] **Query engine** — `ПЕРВЫЕ/ПЕРШІ N` → `LIMIT`, Ukrainian letters in words, `УБЫВ/ВОЗР`, 1C string `+`
+- [x] **`packaging/windows.spec`** — one PyInstaller spec, `ONES_EDITION=base|ru|uk|en`
+- [ ] Real BAS configurations, ОСВ reconciliation, Odoo import files ← next
+
+---
+
 ## 🌍 v1.2 — Open ecosystem (2027)
 
 - [ ] **Module registry** — community-published accounting rules, payroll formulas

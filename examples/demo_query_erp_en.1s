@@ -13,7 +13,7 @@ Message("Org nodes in database: " + result.Count());
 cursor = result.Choose();
 While cursor.Next() Do
     Message("  [" + cursor.Value("type") + "] " + cursor.Value("name") + " (parent: " + cursor.Value("parent_id") + ")");
-EndWhile;
+EndDo;
 
 // Query budget allocations
 Message("");
@@ -25,7 +25,7 @@ Message("Budget rows: " + rb.Count());
 cb = rb.Choose();
 While cb.Next() Do
     Message("  " + cb.Value("org_id") + " / " + cb.Value("period") + " / " + cb.Value("account") + " = " + cb.Value("amount"));
-EndWhile;
+EndDo;
 
 // Query payroll results
 Message("");
@@ -37,7 +37,7 @@ Message("Payroll rows: " + rp.Count());
 cp = rp.Choose();
 While cp.Next() Do
     Message("  " + cp.Value("emp_name") + " (" + cp.Value("period") + "): gross=" + cp.Value("gross") + " net=" + cp.Value("net"));
-EndWhile;
+EndDo;
 
 Message("");
 Message("=== Done. Query Engine extension working correctly. ===");

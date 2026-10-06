@@ -3,7 +3,7 @@
 """
 from .types import *
 from .types import (
-    _Undefined, Undefined, _1SException, _parse_date,
+    _Undefined, Undefined, _1SException, _parse_date, _cat,
     _Array, _Map, _Structure, _ValueTable, _VTRow, _VTColumnCollection,
     _ValueList, _ValueListItem, _KeyValue,
 )
@@ -133,7 +133,8 @@ from .lp import (
 __all__ = [
     # Types
     "Undefined", "_1SException", "Array", "Structure",
-    "_parse_date",
+    "_parse_date", "_cat",
+    "ValueTable", "ValueList",
     # Collections — English
     "_Array", "_Map", "_Structure", "_ValueTable", "_ValueList",
     # Collections — Russian

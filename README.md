@@ -8,6 +8,10 @@
 python -m src.cli migrate audit path/to/config-dump --lang ru -o audit.md
 ```
 
+The report lists, per module **and per procedure**, what ports as is, what depends on the 1C object model and what 1S cannot read yet; with a full configuration dump it also reads object metadata and suggests an **Odoo model for every catalog, document and register** (unmatched ones are listed as custom scope).
+
+Windows builds: `packaging/windows.spec` (`ONES_EDITION=base|ru|uk|en`) or `python installer/build.py --zip`.
+
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10+-green.svg)](https://python.org)
 [![Tests](https://img.shields.io/badge/Tests-384%20passed-brightgreen.svg)](tests/)

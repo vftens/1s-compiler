@@ -25,6 +25,24 @@ _PY_BUILTINS = frozenset({
     "KeyError", "IndexError", "AttributeError",
 })
 
+def _is_string_expr(node: Node) -> bool:
+    """A string literal, or a "+" chain that already contains one."""
+    if isinstance(node, Literal):
+        return node.kind == "string"
+    if isinstance(node, BinOp) and node.op == "+":
+        return _is_string_expr(node.left) or _is_string_expr(node.right)
+    return False
+
+
+def _all_string_literals(node: Node) -> bool:
+    """"a" + "b" + "c": plain Python "+" is already right."""
+    if isinstance(node, Literal):
+        return node.kind == "string"
+    if isinstance(node, BinOp) and node.op == "+":
+        return _all_string_literals(node.left) and _all_string_literals(node.right)
+    return False
+
+
 def _py_name(name: str) -> str:
     if name in _PY_BUILTINS:
         return f"_{name}"
@@ -285,6 +303,12 @@ class PythonTranspiler:
 
             case Identifier(name=n):
                 return _py_name(n)
+
+            case BinOp(op="+", left=left, right=right) if (
+                    (_is_string_expr(left) or _is_string_expr(right))
+                    and not (_all_string_literals(left) and _all_string_literals(right))):
+                # 1C semantics: "Итого: " + 5 -> "Итого: 5" (Python would raise TypeError)
+                return f"_cat({self._expr(left)}, {self._expr(right)})"
 
             case BinOp(op=op, left=left, right=right):
                 return f"({self._expr(left)} {op} {self._expr(right)})"

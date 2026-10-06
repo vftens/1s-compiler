@@ -9,6 +9,7 @@ Usage:
     python installer/build.py --lang uk    # build only Ukrainian edition
     python installer/build.py --lang en    # build only English edition
 """
+import os
 import sys
 import subprocess
 import zipfile
@@ -16,11 +17,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 DIST = ROOT / "dist"
+# One spec for all editions; the edition is passed in ONES_EDITION.
+SPEC = ROOT / "packaging" / "windows.spec"
 
 # Language edition definitions
 EDITIONS = {
     "ru": {
-        "spec":    "1S-ERP-RU.spec",
         "exe":     "1S-ERP-RU.exe",
         "readme":  (
             "1S: ERP Free Edition v0.3 — Russian Edition\n"
@@ -32,7 +34,6 @@ EDITIONS = {
         ),
     },
     "uk": {
-        "spec":    "1S-ERP-UK.spec",
         "exe":     "1S-ERP-UK.exe",
         "readme":  (
             "1S: ERP Free Edition v0.3 — Ukrainian Edition\n"
@@ -44,7 +45,6 @@ EDITIONS = {
         ),
     },
     "en": {
-        "spec":    "1S-ERP-EN.spec",
         "exe":     "1S-ERP-EN.exe",
         "readme":  (
             "1S: ERP Free Edition v0.3 — English Edition\n"
@@ -60,12 +60,12 @@ EDITIONS = {
 
 def build_edition(lang: str) -> Path:
     ed = EDITIONS[lang]
-    spec = ROOT / ed["spec"]
     print(f"\n=== Building {ed['exe']} [{lang.upper()}] ===\n")
 
     result = subprocess.run(
-        [sys.executable, "-m", "PyInstaller", str(spec), "--clean", "--noconfirm"],
+        [sys.executable, "-m", "PyInstaller", str(SPEC), "--clean", "--noconfirm"],
         cwd=str(ROOT),
+        env={**os.environ, "ONES_EDITION": lang},
     )
     if result.returncode != 0:
         print(f"[ERROR] Build failed for {lang.upper()}")

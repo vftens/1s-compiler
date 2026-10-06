@@ -89,6 +89,9 @@ _SINGLE_WORD_MAP = {
     # ORDER direction
     "убыванию": "DESC",    "спаданням": "DESC",    "desc": "DESC",
     "возрастанию": "ASC",  "зростанням": "ASC",    "asc": "ASC",
+    # short forms used in real 1C/BAS queries (УПОРЯДОЧИТЬ ПО Дата УБЫВ)
+    "убыв": "DESC",        "спад": "DESC",
+    "возр": "ASC",         "зрост": "ASC",
     # UNION
     "объединить": "UNION", "обєднати": "UNION",    "union": "UNION",
     "все": "ALL",          "всі": "ALL",            "all": "ALL",
@@ -140,8 +143,27 @@ def _translate_query(raw: str) -> str:
             return word
         return mapped
 
-    sql = re.sub(r"[А-Яа-яёЁA-Za-z_][А-Яа-яёЁA-Za-z0-9_]*", replace_word, sql)
-    return sql.strip()
+    # Ukrainian letters (І Ї Є Ґ) are part of words: without them "ВІД" split
+    # into "В" + "ІД" and became "INІД".
+    sql = re.sub(r"[А-Яа-яёЁІіЇїЄєҐґA-Za-z_][А-Яа-яёЁІіЇїЄєҐґA-Za-z0-9_]*", replace_word, sql)
+    return _top_to_limit(sql.strip())
+
+
+_TOP_RE = re.compile(r"\bTOP\s+(\d+)\b")
+
+
+def _top_to_limit(sql: str) -> str:
+    """ПЕРВЫЕ N / ПЕРШІ N / TOP N -> SQLite "LIMIT N" at the end of the statement.
+
+    1C puts it after ВЫБРАТЬ (SELECT TOP 10 ...); some scripts put it last.
+    SQLite understands neither, so it is removed and appended as LIMIT.
+    """
+    m = _TOP_RE.search(sql)
+    if not m or re.search(r"\bLIMIT\b", sql, re.IGNORECASE):
+        return sql
+    sql = (sql[:m.start()] + sql[m.end():]).rstrip().rstrip(";")
+    sql = re.sub(r"[ \t]{2,}", " ", sql)
+    return f"{sql} LIMIT {m.group(1)}"
 
 
 # ── Query result ─────────────────────────────────────────────────────────────
