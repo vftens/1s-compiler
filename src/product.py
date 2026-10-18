@@ -62,6 +62,7 @@ MODULE_TIERS: dict[str, str] = {
     # the product
     "src.migrate": FOCUS,
     "src.product": FOCUS,
+    "src.demo_reconcile": FOCUS,   # public migration demo on the site (GridCraft)
     # frozen ERP showcase
     "src.runtime.procurement": SHOWCASE,
     "src.runtime.warehouse": SHOWCASE,

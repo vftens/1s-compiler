@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ T.title }} · 1S</title>
+<meta name="description" content="{{ T.lead }}">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--blue:#1565C0;--dark:#0d2137;--accent:#42A5F5;--ok:#2e7d32;--ok-bg:#e8f5e9;
+      --bad:#c62828;--bad-bg:#ffebee;--warn:#8d6e00;--warn-bg:#fff8e1;--gray:#546e7a;
+      --bg:#f0f4f8;--card:#fff;--text:#1b2733;--line:#dde3ea}
+@media (prefers-color-scheme:dark){:root{--bg:#0b1520;--card:#13202e;--text:#e3eaf1;--line:#24364a;
+      --gray:#93a6b8;--ok-bg:#16301b;--bad-bg:#3a1719;--warn-bg:#332a0c;--ok:#7bd88a;--bad:#ff8a80;--warn:#ffd54f;--dark:#e3eaf1}}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+a{color:var(--accent)}
+header{background:linear-gradient(135deg,#0d2137 0%,#1565C0 100%);color:#fff;padding:20px 16px 44px}
+.top{max-width:1000px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{font-weight:800;font-size:20px;color:#fff;text-decoration:none}.brand span{color:var(--accent)}
+.langs a{color:#fff;opacity:.7;margin-left:10px;text-decoration:none;font-size:14px}
+.langs a.on{opacity:1;font-weight:700;border-bottom:2px solid var(--accent)}
+.hero{max-width:1000px;margin:28px auto 0}
+h1{font-size:clamp(24px,4vw,36px);line-height:1.2;margin-bottom:10px}
+.lead{max-width:720px;opacity:.88}
+main{max-width:1000px;margin:-24px auto 40px;padding:0 16px}
+.card{background:var(--card);border-radius:12px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.08);margin-bottom:18px}
+.drops{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.drops{grid-template-columns:1fr}}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:18px;cursor:pointer;display:block;transition:border-color .15s}
+.drop:hover,.drop.over{border-color:var(--accent)}
+.drop b{display:block;margin-bottom:4px}.drop small{color:var(--gray)}
+.drop input{display:block;margin-top:10px;max-width:100%;color:var(--gray)}
+.hint{color:var(--gray);font-size:13px;margin:12px 0 16px}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+button,.btn{font:inherit;font-weight:600;border:0;border-radius:8px;padding:11px 22px;cursor:pointer;text-decoration:none;display:inline-block}
+.primary{background:var(--blue);color:#fff}.ghost{background:transparent;color:var(--accent);border:2px solid var(--accent)}
+button:disabled{opacity:.5;cursor:wait}
+.engine{font-size:13px;margin-top:14px;color:var(--gray)}
+.engine i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+#err{display:none;background:var(--bad-bg);color:var(--bad);border-radius:8px;padding:10px 14px;margin-top:14px}
+#result{display:none}
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.chip{border-radius:10px;padding:10px 14px;min-width:120px}
+.chip b{font-size:24px;display:block;line-height:1.1}
+.c-all{background:var(--bg)}.c-ok{background:var(--ok-bg);color:var(--ok)}
+.c-bad{background:var(--bad-bg);color:var(--bad)}.c-warn{background:var(--warn-bg);color:var(--warn)}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:12px;color:var(--gray);font-weight:600}
+td.n{text-align:right}
+tr.bad td{background:var(--bad-bg)}tr.warn td{background:var(--warn-bg)}
+.st{font-weight:600}.st.ok{color:var(--ok)}.st.bad{color:var(--bad)}.st.warn{color:var(--warn)}
+.how ol{padding-left:20px}.how li{margin:4px 0}
+pre{background:#0d2137;color:#d4e3f1;border-radius:8px;padding:14px;overflow-x:auto;font-size:13px;margin-top:10px}
+footer{text-align:center;color:var(--gray);font-size:13px;padding:0 16px 30px}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <a class="brand" href="https://www.1s-compiler.ru/">1S: <span>ERP</span></a>
+    <nav class="langs">
+      {% for code, name in [("ru","RU"),("uk","UA"),("en","EN")] %}
+      <a href="?lang={{ code }}" class="{{ 'on' if code == lang }}">{{ name }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+  <div class="hero">
+    <h1>{{ T.title }}</h1>
+    <p class="lead">{{ T.lead }}</p>
+  </div>
+</header>
+
+<main>
+  <form class="card" id="form" enctype="multipart/form-data">
+    <div class="drops">
+      <label class="drop"><b>{{ T.left }}</b><small>1C · BAS · .xls</small>
+        <input type="file" name="left" accept=".csv,.tsv,.txt,.xls,.xlsx,.xlsb,.ods"></label>
+      <label class="drop"><b>{{ T.right }}</b><small>Odoo · 1S · .xlsx</small>
+        <input type="file" name="right" accept=".csv,.tsv,.txt,.xls,.xlsx,.xlsb,.ods"></label>
+    </div>
+    <p class="hint">{{ T.formats }}</p>
+    <div class="btns">
+      <button type="submit" class="primary" id="run">{{ T.run }}</button>
+      <button type="button" class="ghost" id="sample">{{ T.sample }}</button>
+    </div>
+    <p class="engine" id="engine">
+      {% if engine.gridcraft %}<i style="background:var(--ok)"></i>{{ T.engine_on.format(v=engine.version or '') }}
+      {% else %}<i style="background:var(--warn)"></i>{{ T.engine_off }}{% endif %}
+    </p>
+    <div id="err" role="alert"></div>
+  </form>
+
+  <section class="card" id="result" aria-live="polite">
+    <div class="chips" id="chips"></div>
+    <div class="tbl"><table>
+      <thead><tr><th>{{ T.acc }}</th><th>{{ T.name }}</th><th>{{ T.status }}</th>
+        <th class="n" id="h-left"></th><th class="n" id="h-right"></th><th class="n">{{ T.delta }}</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+    <p style="margin-top:16px"><a class="btn primary" id="dl" href="#" style="display:none">{{ T.download }}</a></p>
+  </section>
+
+  <section class="card how">
+    <h2 style="font-size:18px;margin-bottom:8px">{{ T.how }}</h2>
+    <ol><li>{{ T.how1 }}</li><li>{{ T.how2 }}</li><li>{{ T.how3 }}</li></ol>
+    <p style="margin-top:12px">{{ T.cli }}</p>
+    <pre>python -m src.cli migrate reconcile osv_1c.xls osv_odoo.xlsx -o sverka.xlsx --lang {{ lang }}</pre>
+  </section>
+</main>
+<footer>1S: ERP Free Edition · GPLv3 · <a href="https://github.com/vftens/1s-compiler">GitHub</a> ·
+  GridCraft (MIT/Apache-2.0)</footer>
+
+<script>
+const T = {{ T|tojson }}, LANG = {{ lang|tojson }};
+const $ = id => document.getElementById(id);
+const fmt = v => v == null ? "—" : Number(v).toLocaleString(LANG === "en" ? "en-US" : "ru-RU",
+  {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const STATUS = {ok: ["ok", T.ok], mismatch: ["bad", T.mismatch],
+                only_left: ["warn", T.only_left], only_right: ["warn", T.only_right]};
+
+function biggest(r) {           // the field with the largest difference: what the accountant fixes
+  let best = "close_dt";
+  for (const f in r.delta) if (Math.abs(r.delta[f]) > Math.abs(r.delta[best])) best = f;
+  return best;
+}
+
+function show(data) {
+  const s = data.summary;
+  $("chips").innerHTML =
+    `<div class="chip c-all"><b>${s.accounts}</b>${T.accounts}</div>` +
+    `<div class="chip c-ok"><b>${s.ok}</b>${T.ok}</div>` +
+    `<div class="chip c-bad"><b>${s.mismatch}</b>${T.mismatch}</div>` +
+    `<div class="chip c-warn"><b>${s.only_left + s.only_right}</b>${T.only_left} / ${T.only_right}</div>`;
+  $("h-left").textContent = data.labels[0];
+  $("h-right").textContent = data.labels[1];
+  const tb = $("rows"); tb.textContent = "";
+  for (const r of data.rows) {
+    const [cls, label] = STATUS[r.status], f = biggest(r);
+    const tr = document.createElement("tr");
+    if (cls !== "ok") tr.className = cls;
+    const cells = [r.account, r.name, label, fmt(r.left && r.left[f]), fmt(r.right && r.right[f]),
+                   fmt(r.status === "ok" ? 0 : r.delta[f])];
+    cells.forEach((v, i) => {
+      const td = document.createElement("td");
+      td.textContent = v;
+      if (i >= 3) td.className = "n";
+      if (i === 2) td.className = "st " + cls;
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  }
+  const dl = $("dl");
+  if (data.download) { dl.href = data.download; dl.style.display = "inline-block"; }
+  else dl.style.display = "none";
+  $("result").style.display = "block";
+  $("result").scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+async function send(body) {
+  $("err").style.display = "none";
+  $("run").disabled = $("sample").disabled = true;
+  body.append("lang", LANG);
+  try {
+    const res = await fetch("/api/v1/demo/reconcile", {method: "POST", body});
+    const data = await res.json();
+    if (!res.ok) throw new Error(res.status === 503 && data.error === "busy" ? T.busy
+                                 : (data.message || data.hint || data.error));
+    show(data);
+  } catch (e) {
+    $("err").textContent = e.message; $("err").style.display = "block";
+  } finally {
+    $("run").disabled = $("sample").disabled = false;
+  }
+}
+
+$("form").addEventListener("submit", e => { e.preventDefault(); send(new FormData($("form"))); });
+$("sample").addEventListener("click", () => { const f = new FormData(); f.append("sample", "1"); send(f); });
+document.querySelectorAll(".drop").forEach(d => {
+  const input = d.querySelector("input");
+  d.addEventListener("dragover", e => { e.preventDefault(); d.classList.add("over"); });
+  d.addEventListener("dragleave", () => d.classList.remove("over"));
+  d.addEventListener("drop", e => { e.preventDefault(); d.classList.remove("over");
+    if (e.dataTransfer.files.length) input.files = e.dataTransfer.files; });
+});
+</script>
+</body>
+</html>

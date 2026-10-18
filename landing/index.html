@@ -76,6 +76,18 @@ h2{font-size:28px;font-weight:700;color:var(--dark);margin-bottom:32px;text-alig
 .stat h3{font-size:40px;font-weight:800}
 .stat p{opacity:.75;font-size:14px}
 
+/* ── Migration demo ── */
+.migr{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;align-items:center}
+@media(max-width:760px){.migr{grid-template-columns:1fr}}
+.migr p{color:var(--gray);margin-bottom:14px}
+.migr ul{margin:0 0 20px 18px;color:var(--gray);font-size:14px}
+.mini{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);padding:16px;font-size:13px;overflow-x:auto}
+.mini table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+.mini td,.mini th{padding:6px 8px;border-bottom:1px solid #e3e8ee;text-align:left;white-space:nowrap}
+.mini th{color:var(--gray);font-weight:600;font-size:11px}.mini .r{text-align:right}
+.mini tr.bad td{background:#ffebee}.mini tr.warn td{background:#fff8e1}
+.mini .ok{color:var(--green);font-weight:600}.mini .bd{color:#c62828;font-weight:600}.mini .wn{color:#8d6e00;font-weight:600}
+
 /* ── Footer ── */
 footer{background:var(--dark);color:#90a4ae;text-align:center;padding:32px 20px;font-size:13px}
 footer a{color:#90a4ae}
@@ -100,6 +112,9 @@ footer a{color:#90a4ae}
   <div class="cta">
     <a href="https://github.com/vftens/1s-compiler" class="btn btn-primary" target="_blank">
       ⭐ GitHub — скачать бесплатно
+    </a>
+    <a href="/demo/sverka" class="btn btn-ghost">
+      🧾 Демо: сверка ОСВ 1С → Odoo
     </a>
     <a href="https://github.com/vftens/1s-compiler/releases" class="btn btn-ghost" target="_blank">
       📦 Скачать .exe (32 МБ)
@@ -168,6 +183,34 @@ footer a{color:#90a4ae}
     <div class="card"><div class="icon">🔌</div>
       <h3>REST API</h3>
       <p>POST /api/v1/run, /eval, /scripts — интеграция с любыми системами.</p></div>
+  </div>
+</section>
+
+<!-- ── Migration demo (GridCraft) ───────────────────────────────────────── -->
+<section id="sverka">
+  <h2>Переехали с 1С? Проверьте остатки за 10 секунд</h2>
+  <div class="migr">
+    <div>
+      <p>Загрузите ОСВ из 1С/BAS и из новой системы — 1S сопоставит счета, найдёт
+         расхождения в оборотах и остатках и отдаст книгу Excel, где каждая разница —
+         формула, а не число, которому надо верить.</p>
+      <ul>
+        <li>XLS из 1С, XLSX из Odoo, CSV — без конвертации</li>
+        <li>Движок таблиц GridCraft (Rust, MIT/Apache-2.0)</li>
+        <li>Файлы удаляются сразу после сверки</li>
+      </ul>
+      <a href="/demo/sverka" class="btn" style="background:var(--blue);color:#fff">Попробовать сверку →</a>
+      <a href="/demo/sverka?lang=uk" class="btn" style="color:var(--blue)">Українською</a>
+    </div>
+    <div class="mini" aria-label="Пример результата сверки">
+      <table>
+        <tr><th>Счёт</th><th>Наименование</th><th class="r">1С</th><th class="r">Odoo</th><th>Статус</th></tr>
+        <tr><td>10</td><td>Осн.средства</td><td class="r">150 000,00</td><td class="r">150 000,00</td><td class="ok">OK</td></tr>
+        <tr class="bad"><td>31</td><td>Банк</td><td class="r">70 000,00</td><td class="r">70 100,00</td><td class="bd">−100,00</td></tr>
+        <tr><td>70</td><td>Доходы</td><td class="r">120 000,00</td><td class="r">120 000,00</td><td class="ok">OK</td></tr>
+        <tr class="warn"><td>92</td><td>Адм.расх.</td><td class="r">30 500,00</td><td class="r">—</td><td class="wn">нет в Odoo</td></tr>
+      </table>
+    </div>
   </div>
 </section>
 

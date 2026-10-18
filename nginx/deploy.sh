@@ -37,11 +37,23 @@ fi
 mkdir -p data/config
 
 # ── 3. Build Docker image ─────────────────────────────────────────────
-echo "[3/6] Building Docker image..."
-docker build -t 1s-erp:latest .
+# A 1 GB VPS cannot compile GridCraft (Rust needs ~2 GB): pull the image
+# built by GitHub Actions. IMAGE=build forces a local build.
+IMAGE="${IMAGE:-ghcr.io/vftens/1s-erp:latest}"
+if [ "$IMAGE" = "build" ]; then
+    echo "[3/6] Building Docker image locally..."
+    docker build -t 1s-erp:latest .
+elif docker pull "$IMAGE"; then
+    echo "[3/6] Pulled $IMAGE"
+    docker tag "$IMAGE" 1s-erp:latest
+else
+    echo "[3/6] Pull failed — building without GridCraft (CSV-only demo)..."
+    docker build --build-arg GRIDCRAFT_REF=none -t 1s-erp:latest .
+fi
 
 # ── 4. Start application ─────────────────────────────────────────────
 echo "[4/6] Starting application..."
+docker rm -f 1s-erp-app 2>/dev/null || true
 docker run -d --name 1s-erp-app --restart unless-stopped \
     -p 127.0.0.1:5000:5000 \
     -v "$APP_DIR/data/config:/app/config" \
@@ -73,6 +85,8 @@ echo ""
 echo "═══════════════════════════════════════════════════"
 echo "  Deploy complete!"
 echo "  URL:    https://$DOMAIN"
+echo "  Demo:   https://$DOMAIN/demo/sverka"
+curl -sf http://localhost:5000/api/v1/demo/engine || true; echo
 echo "  Login:  admin / admin   (CHANGE THIS!)"
 echo "  Logs:   docker logs 1s-erp-app -f"
 echo "═══════════════════════════════════════════════════"

@@ -6,6 +6,8 @@ version: "3.9"
 
 services:
   app:
+    # Prebuilt image with GridCraft (GitHub Actions); falls back to a local build
+    image: ${IMAGE:-ghcr.io/vftens/1s-erp:latest}
     build:
       context: ..
       dockerfile: Dockerfile
@@ -37,6 +39,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/1s-erp.conf:ro
+      - ../landing:/opt/1s-erp/landing:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - certbot-www:/var/www/certbot:ro
     depends_on:

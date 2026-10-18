@@ -1852,6 +1852,13 @@ _API_ENDPOINTS.extend([
 ])
 
 
+# ── Public demo: trial balance reconciliation via GridCraft ─────────────────
+
+from .demo_reconcile import bp as _demo_reconcile_bp, API_DOCS as _DEMO_RECONCILE_DOCS
+app.register_blueprint(_demo_reconcile_bp)
+_API_ENDPOINTS.extend(_DEMO_RECONCILE_DOCS)
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def run_server(host: str = "127.0.0.1", port: int = 5000, debug: bool = False):
