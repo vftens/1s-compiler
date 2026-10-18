@@ -1,0 +1,134 @@
+name: Build
+
+# Builds the desktop and CLI editions from packaging/*.spec on real Windows,
+# macOS and Linux runners. Artifacts on every run; a GitHub Release with all
+# files when a tag v* is pushed (git tag v1.3.0 && git push origin v1.3.0).
+
+on:
+  push:
+    branches: ["**"]   # with paths: branch pushes that touch packaging
+    tags: ["v*"]       # tag pushes always build (paths are not checked for tags)
+    paths:
+      - "packaging/**"
+      - "gui/**"
+      - "installer/**"
+      - ".github/workflows/build.yml"
+  pull_request:
+    paths:
+      - "packaging/**"
+      - "gui/**"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows ${{ matrix.edition }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { edition: base, exe: 1S-ERP }
+          - { edition: ru,   exe: 1S-ERP-RU }
+          - { edition: uk,   exe: 1S-ERP-UK }
+          - { edition: en,   exe: 1S-ERP-EN }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install build dependencies
+        run: python -m pip install pyinstaller flask pyyaml pywebview
+      - name: Build ${{ matrix.exe }}.exe
+        env:
+          ONES_EDITION: ${{ matrix.edition }}
+          PYTHONUTF8: "1"
+        run: python -m PyInstaller packaging/windows.spec --clean --noconfirm
+      - name: Check the exe
+        shell: pwsh
+        run: |
+          $exe = "dist/${{ matrix.exe }}.exe"
+          if (-not (Test-Path $exe)) { throw "$exe was not built" }
+          "{0}: {1:N1} MB" -f $exe, ((Get-Item $exe).Length / 1MB)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.exe }}-windows
+          path: dist/${{ matrix.exe }}.exe
+          if-no-files-found: error
+
+  linux:
+    name: Linux CLI
+    runs-on: ubuntu-22.04   # older glibc: the binary also runs on newer distros
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install build dependencies
+        run: python -m pip install pyinstaller flask pyyaml
+      - name: Build dist/1s
+        run: python -m PyInstaller packaging/linux.spec --clean --noconfirm
+      - name: Smoke test (no Python on PATH)
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          B="$PWD/dist/1s/1s"
+          cd "$RUNNER_TEMP"
+          env -i PATH=/usr/bin:/bin HOME="$RUNNER_TEMP" "$B" about | grep "Focus: migration"
+          env -i PATH=/usr/bin:/bin HOME="$RUNNER_TEMP" "$B" migrate audit "$GITHUB_WORKSPACE/examples" --lang en -o audit.md
+          grep -q "Portable as is" audit.md
+          env -i PATH=/usr/bin:/bin HOME="$RUNNER_TEMP" "$B" run "$GITHUB_WORKSPACE/examples/hello_uk.1s"
+      - name: Pack
+        run: tar -C dist -czf 1s-linux-x86_64.tar.gz 1s
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 1s-linux-x86_64
+          path: 1s-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  macos:
+    name: macOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install build dependencies
+        run: python -m pip install pyinstaller flask pyyaml pywebview pillow
+      - name: Build 1S-ERP.app
+        run: python -m PyInstaller packaging/macos.spec --clean --noconfirm
+      - name: Check the bundle
+        run: |
+          test -x "dist/1S-ERP.app/Contents/MacOS/1S-ERP"
+          /usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "dist/1S-ERP.app/Contents/Info.plist"
+      - name: Pack
+        run: ditto -c -k --keepParent "dist/1S-ERP.app" 1S-ERP-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 1S-ERP-macos
+          path: 1S-ERP-macos.zip
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true

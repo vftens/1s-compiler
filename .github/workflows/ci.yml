@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: ["**"]   # every branch: work branches were never tested before
   pull_request:
     branches: [main]
 
@@ -24,7 +24,9 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install flask pytest
+        run: |
+          sudo apt-get install -y -qq glpk-utils
+          pip install flask pytest pyyaml openpyxl reportlab
 
       - name: Run test suite
         run: python -m pytest tests/ -q --tb=short
@@ -60,27 +62,4 @@ jobs:
           curl -f http://localhost:5000/api/v1/ping
           docker stop erp_test
 
-  release:
-    name: Build .exe (Windows)
-    runs-on: windows-latest
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install build deps
-        run: pip install flask pywebview pystray pillow pyinstaller
-
-      - name: Build .exe
-        run: python installer/build.py --zip
-
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: 1S-ERP-windows
-          path: dist/1S-ERP-v*.zip
+  # Windows/macOS/Linux builds and GitHub Releases: see build.yml
