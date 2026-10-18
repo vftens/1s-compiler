@@ -145,6 +145,29 @@ def cmd_migrate_audit(path: Path, lang: str = "ru", as_json: bool = False,
     else:
         print(text)
 
+def cmd_migrate_reconcile(args) -> int:
+    """Exit code 0 when every account matches, 1 when there are differences, 2 on errors."""
+    from .migrate.gridcraft import GridCraft, GridCraftError
+    from .migrate.reconcile import load_trial_balance, reconcile, summary, write_reconciliation
+    try:
+        gc = GridCraft()
+        left = load_trial_balance(args.left, gc, args.left_sheet)
+        right = load_trial_balance(args.right, gc, args.right_sheet)
+        diffs = reconcile(left, right)
+        write_reconciliation(diffs, args.output, args.left_label, args.right_label, args.lang, gc)
+    except (GridCraftError, ValueError, OSError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
+    s = summary(diffs)
+    print(f"{s['accounts']} accounts: {s['ok']} ok, {s['mismatch']} mismatch, "
+          f"{s['only_left']} only in {args.left_label}, {s['only_right']} only in {args.right_label}")
+    for d in diffs:
+        if d.status != "ok":
+            print(f"  {d.account:<10} {d.name[:30]:<30} {d.status:<10} "
+                  f"Δ close Dt {d.delta('close_dt'):>14,.2f}  Δ close Ct {d.delta('close_ct'):>14,.2f}")
+    print(f"Workbook: {args.output}")
+    return 0 if s["ok"] == s["accounts"] else 1
+
 def main():
     parser = argparse.ArgumentParser(prog="1s", description="1S: ERP Free Edition compiler")
     sub = parser.add_subparsers(dest="command")
@@ -182,6 +205,17 @@ def main():
     p_aud.add_argument("--json", action="store_true", help="JSON instead of Markdown")
     p_aud.add_argument("-o", "--output", help="Write the report to a file")
 
+    p_rec = mig_sub.add_parser("reconcile",
+                               help="Compare two trial balances (1C/BAS vs target) into an .xlsx (needs gridcraft-cli)")
+    p_rec.add_argument("left", help="trial balance from 1C/BAS: .xls/.xlsx/.xlsb/.ods/.csv")
+    p_rec.add_argument("right", help="trial balance from the target system (Odoo ...)")
+    p_rec.add_argument("-o", "--output", required=True, help="reconciliation workbook (.xlsx)")
+    p_rec.add_argument("--lang", choices=["ru", "uk", "en"], default="ru")
+    p_rec.add_argument("--left-label", default="1C")
+    p_rec.add_argument("--right-label", default="Odoo")
+    p_rec.add_argument("--left-sheet")
+    p_rec.add_argument("--right-sheet")
+
     p_about = sub.add_parser("about", help="Product focus and module tiers")
 
     p_serve = sub.add_parser("serve", help="Запустить веб-интерфейс")
@@ -206,11 +240,13 @@ def main():
     elif args.command == "cython-build":
         cmd_cython_build(Path(args.file), run_after=args.run)
     elif args.command == "migrate":
-        if args.migrate_command != "audit":
+        if args.migrate_command == "audit":
+            cmd_migrate_audit(Path(args.path), args.lang, args.json,
+                              Path(args.output) if args.output else None)
+        elif args.migrate_command == "reconcile":
+            sys.exit(cmd_migrate_reconcile(args))
+        else:
             p_mig.print_help()
-            return
-        cmd_migrate_audit(Path(args.path), args.lang, args.json,
-                          Path(args.output) if args.output else None)
     elif args.command == "about":
         from .product import main as product_main
         product_main([])
