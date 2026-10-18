@@ -198,7 +198,9 @@ class TestQueryEmptyAndCorrupt:
         from src.runtime.query import _Query
         corrupt = tmp_path / "corrupt.db"
         corrupt.write_bytes(b"this is not a sqlite database !!!")
-        q = _Query("SELECT 1")
+        # Must read the file: SQLite opens lazily, so "SELECT 1" passes on a
+        # corrupt file with newer SQLite builds (Linux CI) and fails on others.
+        q = _Query("SELECT name FROM sqlite_master")
         with patch.dict(os.environ, {"1S_ALLOW_ANY_DB_PATH": "1"}):
             q.AttachDB(str(corrupt))
         with pytest.raises(RuntimeError):

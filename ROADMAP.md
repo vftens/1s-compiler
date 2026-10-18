@@ -127,6 +127,17 @@
 
 ---
 
+## 📦 v1.3 — Sprint 20: packaging for every platform (October 2026)
+
+- [x] **`packaging/linux.spec`** — `1s` CLI for servers (onedir, no Python needed), smoke-tested
+- [x] **`packaging/macos.spec`** — `1S-ERP.app` (pywebview/WebKit)
+- [x] **GitHub Actions `build.yml`** — Windows ×4, Linux, macOS; release with all files on a `v*` tag
+- [x] **Security** — `config/secret.key` no longer shipped or tracked; each install generates its own
+- [x] **CI on every branch**, full suite green on Linux (756 passed)
+- [ ] User data outside the app bundle for desktop builds; code signing ← next
+
+---
+
 ## 🌍 v1.2 — Open ecosystem (2027)
 
 - [ ] **Module registry** — community-published accounting rules, payroll formulas

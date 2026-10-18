@@ -45,10 +45,12 @@ a = Analysis(  # noqa: F821 - PyInstaller spec globals
     [str(GUI / ed["entry"])],
     pathex=[str(ROOT)],
     binaries=[],
+    # No config/: users and the secret key are created per installation on
+    # first run. Shipping config/secret.key would give every install the same
+    # (public) Flask session key, so anyone could forge an admin session.
     datas=[
         (str(ROOT / "src"), "src"),
         (str(ROOT / "examples"), "examples"),
-        (str(ROOT / "config"), "config"),
         (str(ASSETS), os.path.join("gui", "assets")),
     ],
     hiddenimports=hiddenimports,
